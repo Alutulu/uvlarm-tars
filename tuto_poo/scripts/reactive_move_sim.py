@@ -23,7 +23,7 @@ class reactive_move(Node):
         self.right = 1
         self.all = 0
         self.move1_publisher = self.create_publisher(
-            Twist, '/multi/cmd_nav', 10)
+            Twist, '/cmd_vel', 10)
         self.move_left = Twist()
         self.move_left.linear.x = 0.0  # meter per second
         self.move_left.angular.z = 0.3  # radian per second
@@ -54,8 +54,8 @@ class reactive_move(Node):
 
         self.cloud_publisher.publish(sampleCloud)
        # try:
-        obstacles_right = self.detectInRectangle(0.3, 0.7, self.right, sample)
-        obstacles_left = self.detectInRectangle(0.3, 0.7, self.left, sample)
+        obstacles_right = self.detectInRectangle(0.15, 0.5, self.right, sample)
+        obstacles_left = self.detectInRectangle(0.15, 0.5, self.left, sample)
         print("right :", len(obstacles_right),
               " | left :", len(obstacles_left))
         if len(obstacles_right) > 0:

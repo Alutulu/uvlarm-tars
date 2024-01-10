@@ -96,11 +96,12 @@ class Realsense(Node):
         depth_colormap_dim = depth_colormap.shape
         color_colormap_dim = self.color_image.shape
 
+        
+        infra_frame_1 = frames.get_infrared_frame(1)
+        infra_frame_2 = frames.get_infrared_frame(2)
         infra_image_1 = np.asanyarray(infra_frame_1.get_data())
         infra_image_2 = np.asanyarray(infra_frame_2.get_data())
 
-        infra_frame_1 = frames.get_infrared_frame(1)
-        infra_frame_2 = frames.get_infrared_frame(2)
         # Utilisation de colormap sur l'image infrared de la Realsense (image convertie en 8-bit par pixel)
         self.infra_colormap_1 = cv2.applyColorMap(cv2.convertScaleAbs(infra_image_1, alpha=0.03), cv2.COLORMAP_JET)
             

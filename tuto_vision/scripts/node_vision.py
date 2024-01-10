@@ -15,8 +15,10 @@ import rclpy
 from rclpy.node import Node
 
 # Realsense Node:
+
+
 class Realsense(Node):
-    def __init__(self, fps= 60):
+    def __init__(self, fps=60):
         super().__init__('realsense')
         # Configure depth and color streams
         self.pipeline = rs.pipeline()
@@ -26,7 +28,8 @@ class Realsense(Node):
         self.pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
         self.pipeline_profile = self.config.resolve(self.pipeline_wrapper)
         self.device = self.pipeline_profile.get_device()
-        self.device_product_line = str(self.device.get_info(rs.camera_info.product_line))
+        self.device_product_line = str(
+            self.device.get_info(rs.camera_info.product_line))
 
         print(f"Connect: {self.device_product_line}")
         found_rgb = True  # ligne 27 à 35 vérification que tous les supports fonctionnent
@@ -40,7 +43,8 @@ class Realsense(Node):
             exit(0)
 
         # init stream caméra avec le format
-        self.config.enable_stream(rs.stream.color, 848, 480, rs.format.bgr8, 60)
+        self.config.enable_stream(
+            rs.stream.color, 848, 480, rs.format.bgr8, 60)
         self.config.enable_stream(rs.stream.depth, 848, 480, rs.format.z16, 60)
 
         signal.signal(signal.SIGINT, self.signalInteruption)
@@ -97,19 +101,21 @@ class Realsense(Node):
     def publish_imgs(self):
         pass
 
-    
     def signalInteruption(self, signum, frame):
         global isOk
         print("\nCtrl-c pressed")
         isOk = False
 
+
 # Capture ctrl-c event
 isOk = True
 
 # Node processes:
+
+
 def process_img(args=None):
     rclpy.init(args=args)
-    rsNode= Realsense()
+    rsNode = Realsense()
     while isOk:
         rsNode.read_imgs()
         rsNode.publish_imgs()
@@ -120,3 +126,6 @@ def process_img(args=None):
     # Clean end
     rsNode.destroy_node()
     rclpy.shutdown()
+
+
+process_img()

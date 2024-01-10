@@ -13,10 +13,9 @@ import sys
 import cv2
 import rclpy
 from rclpy.node import Node
+from cv_bridge import CvBridge
 
 # Realsense Node:
-
-
 class Realsense(Node):
     def __init__(self, fps=60):
         super().__init__('realsense')
@@ -56,6 +55,8 @@ class Realsense(Node):
         self.refTime = time.process_time()
         self.freq = 60
 
+        self.bridge=CvBridge()
+
         sys.stdout.write("-")
 
     def read_imgs(self):
@@ -69,21 +70,21 @@ class Realsense(Node):
             return
 
         # Convert images to numpy arrays
-        depth_image = np.asanyarray(depth_frame.get_data())
-        color_image = np.asanyarray(color_frame.get_data())
+        self.depth_image = np.asanyarray(depth_frame.get_data())
+        self.color_image = np.asanyarray(color_frame.get_data())
 
         # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
-            depth_image, alpha=0.15), cv2.COLORMAP_JET)
+            self.depth_image, alpha=0.15), cv2.COLORMAP_JET)
 
         depth_colormap_dim = depth_colormap.shape
-        color_colormap_dim = color_image.shape
+        color_colormap_dim = self.color_image.shape
 
         sys.stdout.write(
             f"\r- {color_colormap_dim} - {depth_colormap_dim} - ({round(self.freq)} fps)")
 
         # Show images
-        images = np.hstack((color_image, depth_colormap))
+        images = np.hstack((self.color_image, depth_colormap))
 
         # Show images
         cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
@@ -99,7 +100,19 @@ class Realsense(Node):
         self.count += 1
 
     def publish_imgs(self):
-        pass
+
+        msg_image = self.bridge.cv2_to_imgmsg(self.color_image,"bgr8")
+        msg_image.header.stamp = self.get_clock().now().to_msg()
+        msg_image.header.frame_id = "image"
+        self.image_publisher.publish(msg_image)
+
+        # Utilisation de colormap sur l'image depth de la Realsense (image convertie en 8-bit par pixel)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(self.depth_image, alpha=0.03), cv2.COLORMAP_JET)
+
+        msg_depth = self.bridge.cv2_to_imgmsg(depth_colormap,"bgr8")
+        msg_depth.header.stamp = msg_image.header.stamp
+        msg_depth.header.frame_id = "depth"
+        self.depth_publisher.publish(msg_depth)
 
     def signalInteruption(self, signum, frame):
         global isOk

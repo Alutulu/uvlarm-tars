@@ -57,6 +57,9 @@ class Realsense(Node):
 
         self.bridge=CvBridge()
 
+        self.image_publisher = self.create_publisher(Image, 'image_color', 10)
+        self.depth_publisher = self.create_publisher(Image, 'image_depth', 10)
+
         sys.stdout.write("-")
 
     def read_imgs(self):

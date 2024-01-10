@@ -56,7 +56,7 @@ class Realsense(Node):
         signal.signal(signal.SIGINT, self.signalInteruption)
 
         # Start streaming
-        self.pipeline.start(self.config)
+        
 
         self.count = 1
         self.refTime = time.process_time()
@@ -69,7 +69,7 @@ class Realsense(Node):
 
         self.config.enable_stream(rs.stream.infrared, 1, 848, 480, rs.format.y8, 60)
         self.config.enable_stream(rs.stream.infrared, 2, 848, 480, rs.format.y8, 60)
-
+        self.pipeline.start(self.config)
         self.infra_publisher_1 = self.create_publisher(Image, 'infrared_1',10) 
         self.infra_publisher_2 = self.create_publisher(Image, 'infrared_2',10)
 
@@ -96,7 +96,7 @@ class Realsense(Node):
         depth_colormap_dim = depth_colormap.shape
         color_colormap_dim = self.color_image.shape
 
-        
+
         infra_frame_1 = frames.get_infrared_frame(1)
         infra_frame_2 = frames.get_infrared_frame(2)
         infra_image_1 = np.asanyarray(infra_frame_1.get_data())

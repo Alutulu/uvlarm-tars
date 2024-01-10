@@ -52,9 +52,9 @@ class Realsense(Node):
         # Start streaming
         self.pipeline.start(self.config)
 
-        count = 1
-        refTime = time.process_time()
-        freq = 60
+        self.count = 1
+        self.refTime = time.process_time()
+        self.freq = 60
 
         sys.stdout.write("-")
 
@@ -74,13 +74,13 @@ class Realsense(Node):
 
         # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
-            depth_image, alpha=0.03), cv2.COLORMAP_JET)
+            depth_image, alpha=0.15), cv2.COLORMAP_JET)
 
         depth_colormap_dim = depth_colormap.shape
         color_colormap_dim = color_image.shape
 
         sys.stdout.write(
-            f"\r- {color_colormap_dim} - {depth_colormap_dim} - ({round(freq)} fps)")
+            f"\r- {color_colormap_dim} - {depth_colormap_dim} - ({round(self.freq)} fps)")
 
         # Show images
         images = np.hstack((color_image, depth_colormap))
@@ -91,12 +91,12 @@ class Realsense(Node):
         cv2.waitKey(1)
 
         # Frequency:
-        if count == 10:
+        if self.count == 10:
             newTime = time.process_time()
-            freq = 10/((newTime-refTime))
-            refTime = newTime
-            count = 0
-        count += 1
+            self.freq = 10/((newTime-self.refTime))
+            self.refTime = newTime
+            self.count = 0
+        self.count += 1
 
     def publish_imgs(self):
         pass

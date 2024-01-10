@@ -19,7 +19,7 @@ import cv2
 import rclpy
 from rclpy.node import Node
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image	
+from sensor_msgs.msg import Image
 
 
 # Realsense Node:
@@ -55,23 +55,24 @@ class Realsense(Node):
 
         signal.signal(signal.SIGINT, self.signalInteruption)
 
-        # Start streaming
-        
-
         self.count = 1
         self.refTime = time.process_time()
         self.freq = 60
 
-        self.bridge=CvBridge()
+        self.bridge = CvBridge()
 
         self.image_publisher = self.create_publisher(Image, 'image_color', 10)
         self.depth_publisher = self.create_publisher(Image, 'image_depth', 10)
 
-        self.config.enable_stream(rs.stream.infrared, 1, 848, 480, rs.format.y8, 60)
-        self.config.enable_stream(rs.stream.infrared, 2, 848, 480, rs.format.y8, 60)
+        self.config.enable_stream(
+            rs.stream.infrared, 1, 848, 480, rs.format.y8, 60)
+        self.config.enable_stream(
+            rs.stream.infrared, 2, 848, 480, rs.format.y8, 60)
+        # Start streaming
         self.pipeline.start(self.config)
-        self.infra_publisher_1 = self.create_publisher(Image, 'infrared_1',10) 
-        self.infra_publisher_2 = self.create_publisher(Image, 'infrared_2',10)
+
+        self.infra_publisher_1 = self.create_publisher(Image, 'infrared_1', 10)
+        self.infra_publisher_2 = self.create_publisher(Image, 'infrared_2', 10)
 
         sys.stdout.write("-")
 
@@ -96,17 +97,18 @@ class Realsense(Node):
         depth_colormap_dim = depth_colormap.shape
         color_colormap_dim = self.color_image.shape
 
-
         infra_frame_1 = frames.get_infrared_frame(1)
         infra_frame_2 = frames.get_infrared_frame(2)
         infra_image_1 = np.asanyarray(infra_frame_1.get_data())
         infra_image_2 = np.asanyarray(infra_frame_2.get_data())
 
         # Utilisation de colormap sur l'image infrared de la Realsense (image convertie en 8-bit par pixel)
-        self.infra_colormap_1 = cv2.applyColorMap(cv2.convertScaleAbs(infra_image_1, alpha=0.03), cv2.COLORMAP_JET)
-            
+        self.infra_colormap_1 = cv2.applyColorMap(
+            cv2.convertScaleAbs(infra_image_1, alpha=1), cv2.COLORMAP_JET)
+
         # Utilisation de colormap sur l'image infrared de la Realsense (image convertie en 8-bit par pixel)
-        self.infra_colormap_2 = cv2.applyColorMap(cv2.convertScaleAbs(infra_image_2, alpha=0.03), cv2.COLORMAP_JET)
+        self.infra_colormap_2 = cv2.applyColorMap(
+            cv2.convertScaleAbs(infra_image_2, alpha=1), cv2.COLORMAP_JET)
 
         sys.stdout.write(
             f"\r- {color_colormap_dim} - {depth_colormap_dim} - ({round(self.freq)} fps)")
@@ -129,25 +131,26 @@ class Realsense(Node):
 
     def publish_imgs(self):
 
-        msg_image = self.bridge.cv2_to_imgmsg(self.color_image,"bgr8")
+        msg_image = self.bridge.cv2_to_imgmsg(self.color_image, "bgr8")
         msg_image.header.stamp = self.get_clock().now().to_msg()
         msg_image.header.frame_id = "image"
         self.image_publisher.publish(msg_image)
 
         # Utilisation de colormap sur l'image depth de la Realsense (image convertie en 8-bit par pixel)
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(self.depth_image, alpha=0.03), cv2.COLORMAP_JET)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
+            self.depth_image, alpha=0.2), cv2.COLORMAP_JET)
 
-        msg_depth = self.bridge.cv2_to_imgmsg(depth_colormap,"bgr8")
+        msg_depth = self.bridge.cv2_to_imgmsg(depth_colormap, "bgr8")
         msg_depth.header.stamp = msg_image.header.stamp
         msg_depth.header.frame_id = "depth"
         self.depth_publisher.publish(msg_depth)
 
-        msg_infra = self.bridge.cv2_to_imgmsg(self.infra_colormap_1,"bgr8")
+        msg_infra = self.bridge.cv2_to_imgmsg(self.infra_colormap_1, "bgr8")
         msg_infra.header.stamp = msg_image.header.stamp
         msg_infra.header.frame_id = "infrared_1"
         self.infra_publisher_1.publish(msg_infra)
 
-        msg_infra = self.bridge.cv2_to_imgmsg(self.infra_colormap_2,"bgr8")
+        msg_infra = self.bridge.cv2_to_imgmsg(self.infra_colormap_2, "bgr8")
         msg_infra.header.stamp = msg_image.header.stamp
         msg_infra.header.frame_id = "infrared_2"
         self.infra_publisher_2.publish(msg_infra)

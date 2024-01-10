@@ -18,7 +18,7 @@ install(DIRECTORY
 )
 
 # Python scripts
-# install( PROGRAMS scripts/reactive_move.py DESTINATION lib/${PROJECT_NAME})
+install( PROGRAMS scripts/node_vision.py DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

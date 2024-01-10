@@ -8,6 +8,7 @@
 # Note importante pour détecter les bouteilles : utiliser les seuils pour détecter le vert des bouteilles en RGB
 # --> Comme ça peut varier en fonction de la luminosité, il faut d'abord convertir les canaux RGB en canaux HSV, qui a l'intensité lumineuse en paramètre, avant de faire le seuillage
 # --> on obtient alors un masque blanc correspondant à la bouteille, puis s'intéresser à la depth de la bouteille
+# --> enlever le "bruit" aussi : il y aura des petits pixels blancs isolés, qu'il faudra "gommer" (surement par érosion)
 
 import pyrealsense2 as rs
 import signal

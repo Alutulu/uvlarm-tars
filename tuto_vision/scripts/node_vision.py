@@ -5,6 +5,10 @@
 ##      Open CV and Numpy integration        ##
 ###############################################
 
+# Note importante pour détecter les bouteilles : utiliser les seuils pour détecter le vert des bouteilles en RGB
+# --> Comme ça peut varier en fonction de la luminosité, il faut d'abord convertir les canaux RGB en canaux HSV, qui a l'intensité lumineuse en paramètre, avant de faire le seuillage
+# --> on obtient alors un masque blanc correspondant à la bouteille, puis s'intéresser à la depth de la bouteille
+
 import pyrealsense2 as rs
 import signal
 import time

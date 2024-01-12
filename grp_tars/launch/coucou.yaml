@@ -1,0 +1,5 @@
+launch:
+  - node:
+      pkg: "grp_tars"
+      exec: "moove_robot.py"
+      name: "moove_robot"

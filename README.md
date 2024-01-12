@@ -12,3 +12,7 @@
 - Launch the simulation
 - Run slam_toolbox offline : `ros2 launch slam_toolbox offline_launch.py use_sim_time:=False`
 - Play the bag (-r option is for the speed) : `ros2 bag play -r 10 slam-challenge-1`
+
+### Find the logs
+When we use the `print` instruction in Python, the output is written in the log files.
+The log files can be found at the root of the user workspace (not the ROS workspace), in the hidden folders.

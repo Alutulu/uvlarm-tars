@@ -9,5 +9,3 @@ launch:
       pkg: "grp_tars"
       exec: "detection.py"
       name: "detect"
-  - executable:
-      cmd: gnome-terminal -e 'bash -c "ros2 topic echo /detection"'

@@ -32,7 +32,7 @@ class Realsense(Node):
         self.config = rs.config()
         self.detect_publisher = self.create_publisher(
             String, '/detection', 10)
-        self.color = 51
+        self.color = 55
         self.k = 0
 
         self.lo = np.array([self.color-5, 100, 50])

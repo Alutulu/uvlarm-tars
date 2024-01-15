@@ -1,0 +1,17 @@
+launch:
+  - include:
+      file: "$(find-pkg-share tbot_node)/launch/minimal_launch.yaml"
+  - node:
+      pkg: "grp_tars"
+      exec: "moove_the_robot2.py"
+      name: "moove_robot"
+  - node:
+      pkg: "grp_tars"
+      exec: "detection.py"
+      name: "detect"
+  - node:
+      pkg: "rviz2"
+      exec: "rviz2"
+      name: "rviz"
+      namespace: "rviz_1"
+      args: " -d $(find-pkg-share grp_tars)/rviz/conf_rviz.rviz"

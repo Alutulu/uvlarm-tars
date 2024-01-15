@@ -73,10 +73,12 @@ class reactive_move(Node):
             self.parametre = 1
             self.un_sur_trois = (self.un_sur_trois+1) % 3
         elif self.parametre == 0:
-            self.move_null.angular.z = 0
+            self.move_null.angular.z = 0.0
             self.move1_publisher.publish(self.move_null)
             self.parametre = 1
             self.un_sur_trois += 1
+        else:
+            self.move1_publisher.publish(self.move_null)
 
             # except:
             #     print("erreur ", type(sample))

@@ -32,9 +32,10 @@ class reactive_move(Node):
         self.move_right.linear.x = 0.0  # meter per second
         self.move_right.angular.z = -0.6  # radian per second
         self.move_null = Twist()
-        self.move_null.linear.x = 0.5  # meter per second
+        self.move_null.linear.x = 0.7  # meter per second
         self.move_null.angular.z = 0.0  # radian per second
         self.parametre = 0
+        self.un_sur_trois = 0
 
     def scan_callback(self, scanMsg):
         obstacles = []
@@ -56,8 +57,8 @@ class reactive_move(Node):
 
         self.cloud_publisher.publish(sampleCloud)
        # try:
-        obstacles_right = self.detectInRectangle(0.3, 0.7, self.right, sample)
-        obstacles_left = self.detectInRectangle(0.3, 0.7, self.left, sample)
+        obstacles_right = self.detectInRectangle(0.3, 0.5, self.right, sample)
+        obstacles_left = self.detectInRectangle(0.3, 0.5, self.left, sample)
         print("right :", len(obstacles_right),
               " | left :", len(obstacles_left))
         if len(obstacles_right) > 0:
@@ -66,9 +67,16 @@ class reactive_move(Node):
         elif len(obstacles_left) > 0:
             self.move1_publisher.publish(self.move_right)
             self.parametre = 0
-        elif self.parametre == 0:
-            self.move_null.angular.z = random.uniform(-0.1, 0.1)
+        elif self.parametre == 0 and self.un_sur_trois != 0:
+            self.move_null.angular.z = (random.uniform(
+                0, 0.1)+0.1)*random.choice([-1, 1])
             self.parametre = 1
+            self.un_sur_trois = (self.un_sur_trois+1) % 3
+        elif self.parametre == 0:
+            self.move_null.angular.z = 0.0
+            self.move1_publisher.publish(self.move_null)
+            self.parametre = 1
+            self.un_sur_trois += 1
         else:
             self.move1_publisher.publish(self.move_null)
             # except:

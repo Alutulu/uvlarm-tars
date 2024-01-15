@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import rclpy
 from rclpy.node import Node
 import math
@@ -7,36 +8,34 @@ import sensor_msgs.msg._point_cloud2 as pc2
 import sensor_msgs_py.point_cloud2
 from geometry_msgs.msg import Twist
 import random
-from time import sleep
 # test
 
 
 class reactive_move(Node):
 
     def __init__(self):
-
         super().__init__('reactive_node')
         self.subscription = self.create_subscription(
             LaserScan, 'scan',
             self.scan_callback, 50)
-        self.isTourning = 0
-        self.sensRotation = 0
         self.cloud_publisher = self.create_publisher(
             pc2.PointCloud2, 'laser_link', 10)
         self.left = 2
         self.right = 1
         self.all = 0
         self.move1_publisher = self.create_publisher(
-            Twist, '/cmd_vel', 10)
+            Twist, '/multi/cmd_nav', 10)
         self.move_left = Twist()
         self.move_left.linear.x = 0.0  # meter per second
-        self.move_left.angular.z = 1.0  # radian per second
+        self.move_left.angular.z = 0.6  # radian per second
         self.move_right = Twist()
         self.move_right.linear.x = 0.0  # meter per second
-        self.move_right.angular.z = -1.0  # radian per second
+        self.move_right.angular.z = -0.6  # radian per second
         self.move_null = Twist()
-        self.move_null.linear.x = 2.0  # meter per second
+        self.move_null.linear.x = 0.5  # meter per second
         self.move_null.angular.z = 0.0  # radian per second
+        self.parametre = 0
+        self.un_sur_trois = 0
 
     def scan_callback(self, scanMsg):
         obstacles = []
@@ -58,24 +57,29 @@ class reactive_move(Node):
 
         self.cloud_publisher.publish(sampleCloud)
        # try:
-        obstacles = self.detectInRectangle(0.5, 0.4, self.all, sample)
-
-        # print(len(obstacles))
-        if len(obstacles) > 0 and self.isTourning == 0:
-            self.sensRotation = random.randint(1, 2)
-            self.isTourning = 1
-        # print("i :", i)
-        if self.sensRotation == 1 and len(obstacles) > 0:
-            self.move1_publisher.publish(self.move_right)
-            sleep(random.uniform(0, 0.8))
-        elif self.sensRotation == 2 and len(obstacles) > 0:
+        obstacles_right = self.detectInRectangle(0.3, 0.5, self.right, sample)
+        obstacles_left = self.detectInRectangle(0.3, 0.5, self.left, sample)
+        print("right :", len(obstacles_right),
+              " | left :", len(obstacles_left))
+        if len(obstacles_right) > 0:
             self.move1_publisher.publish(self.move_left)
-            sleep(random.uniform(0, 0.8))
-
-        else:
+            self.parametre = 0
+        elif len(obstacles_left) > 0:
+            self.move1_publisher.publish(self.move_right)
+            self.parametre = 0
+        elif self.parametre == 0 and self.un_sur_trois != 0:
+            self.move_null.angular.z = (random.uniform(
+                0, 0.3)+0.3)*random.choice([-1, 1])
+            self.parametre = 1
+            self.un_sur_trois = (self.un_sur_trois+1) % 3
+        elif self.parametre == 0:
+            self.move_null.angular.z = 0
             self.move1_publisher.publish(self.move_null)
-            self.sensRotation = 0
-            self.isTourning = 0
+            self.parametre = 1
+            self.un_sur_trois += 1
+
+            # except:
+            #     print("erreur ", type(sample))
 
     def detectInRectangle(self, dim_x=3, dim_y=2, scan=0, pointcloud=any):
 

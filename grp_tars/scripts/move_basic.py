@@ -8,7 +8,7 @@ import sensor_msgs.msg._point_cloud2 as pc2
 import sensor_msgs_py.point_cloud2
 from geometry_msgs.msg import Twist
 import random
-from kobuki_ros_interfaces.msg import WheelDropEvent
+from kobuki_ros_interfaces.msg import WheelDropEvent, ButtonEvent
 import time
 
 
@@ -40,7 +40,7 @@ class MoveBasic(Node):
         self.aTourneAGauche = False
         self.leftWheelDroped = False
         self.rightWheelDroped = False
-        self.stoped = False
+        self.stopped = False
 
     def _initTopics(self, topic_move_name):
         self.subscription = self.create_subscription(
@@ -52,6 +52,8 @@ class MoveBasic(Node):
             Twist, topic_move_name, 10)
         self.wheel_drop_publisher = self.create_subscription(
             WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
+        self.wheel_drop_publisher = self.create_subscription(
+            ButtonEvent, '/events/button', self.button_callback, 50)
 
     def wheel_drop_callback(self, wheel_msg):
         rightWheel = wheel_msg.wheel == 1
@@ -65,11 +67,18 @@ class MoveBasic(Node):
         elif not rightWheel and not droped:
             self.leftWheelDroped = False
         if self.robotUp():
-            self.stoped = True
+            self.stopped = True
             self.stopMove()
-        elif self.robotDown() and self.stoped:
+        elif self.robotDown() and self.stopped:
             time.sleep(5)
-            self.stoped = False
+            self.stopped = False
+
+    def button_callback(self, button_msg):
+        if button_msg.state == 1 and not self.stopped:
+            self.stopped = True
+            self.stopMove()
+        elif button_msg.state == 1 and self.stopped:
+            self.stopped = False
 
     def robotUp(self):
         return self.leftWheelDroped and self.rightWheelDroped
@@ -146,7 +155,7 @@ class MoveBasic(Node):
         self.decideMove(number_obstacles_right, number_obstacles_left)
 
     def decideMove(self, number_obstacles_right, number_obstacles_left):
-        if not self.stoped:
+        if not self.stopped:
             # si bloqué dans un coin
             if self.isBloque(number_obstacles_right, number_obstacles_left):
                 self.rotateLeft()

@@ -25,6 +25,7 @@ install(DIRECTORY
 install( PROGRAMS scripts/move_robot.py DESTINATION lib/${PROJECT_NAME})
 install( PROGRAMS scripts/detection.py DESTINATION lib/${PROJECT_NAME})
 install( PROGRAMS scripts/move_simulation.py DESTINATION lib/${PROJECT_NAME})
+install( PROGRAMS scripts/move_basic.py DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

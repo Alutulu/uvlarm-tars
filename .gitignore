@@ -3,3 +3,4 @@ install
 log
 tuto_poo/cours_vision
 grp_tars/scripts/__pycache__
+grp_tars/scripts/__pycache__/*

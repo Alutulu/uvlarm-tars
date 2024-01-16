@@ -22,6 +22,12 @@ Il y a 3 launchfiles différents :
 ros2 launch grp_tars <launchfile>
 ```
 
+## Améliorations futures
+- Quand on soulève le robot, les roues arrête de tourner
+- Quand on appuie sur un des boutons du robot, cela fait un arrête d'urgence
+- Se connecter à distance en **ssh** à un pc connecté en USB au robot
+- Algo frontier base pour que le robot explore en priorité les régions inconnues
+
 ## Tutos
 
 ### To run a node :

@@ -18,17 +18,20 @@ Il y a 3 launchfiles différents :
 - `visualize_launch.yaml` : Il est équivalent à `tbot_launch.yaml`, en lançant également **Rviz**, et en publiant les images de la caméra vers **Rviz**.
 
 ### Tu run a launchfile :
+
 ```
 ros2 launch grp_tars <launchfile>
 ```
 
 ## Améliorations futures
+
+- Utiliser les ROS parameters au lieu des oaramètres dans le constructeur de la classe _move_basic_
 - Quand on soulève le robot, les roues arrête de tourner
 - Quand on appuie sur un des boutons du robot, cela fait un arrête d'urgence
 - Se connecter à distance en **ssh** à un pc connecté en USB au robot
 - Algo frontier base pour que le robot explore en priorité les régions inconnues
 - **Important** : Prendre en compte la taille des bouteilles (pour ne pas détecter des objets de taille différente), grâce au rapport en la profondeur et la taille du cercle max détecté
-- Faire une accélération *smooth*
+- Faire une accélération _smooth_
 
 ## Tutos
 

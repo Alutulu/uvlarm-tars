@@ -28,6 +28,7 @@ ros2 launch grp_tars <launchfile>
 - Se connecter à distance en **ssh** à un pc connecté en USB au robot
 - Algo frontier base pour que le robot explore en priorité les régions inconnues
 - **Important** : Prendre en compte la taille des bouteilles (pour ne pas détecter des objets de taille différente), grâce au rapport en la profondeur et la taille du cercle max détecté
+- Faire une accélération *smooth*
 
 ## Tutos
 

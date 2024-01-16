@@ -11,7 +11,7 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
 
-class Realsense(Node):
+class Detection(Node):
     def __init__(self, fps=60):
         super().__init__('detection_node')
         # Configure depth and color streams
@@ -219,26 +219,20 @@ class Realsense(Node):
         print("\nCtrl-c pressed")
         isOk = False
 
-
-# Capture ctrl-c event
-isOk = True
-
-# Node processes:
-
-
-def process_img(args=None):
+def main(args=None):
+    print("Node DETECTION started")
+    isOk = True # Capture ctrl-c event
     rclpy.init(args=args)
-    rsNode = Realsense()
+    detectNode = Detection()
     while isOk:
-        rsNode.read_imgs()
-        rsNode.publish_imgs()
-        rclpy.spin_once(rsNode, timeout_sec=0.001)
-    # Stop streaming
-    print("\nEnding...")
-    rsNode.pipeline.stop()
-    # Clean end
-    rsNode.destroy_node()
+        detectNode.read_imgs()
+        detectNode.publish_imgs()
+        rclpy.spin_once(detectNode, timeout_sec=0.001)
+    print("\nEnding detection...")
+    rclpy.spin(detectNode)
+    detectNode.pipeline.stop()
+    detectNode.destroy_node()
     rclpy.shutdown()
 
-
-process_img()
+if __name__ == '__main__':
+    main()

@@ -9,7 +9,7 @@ import sensor_msgs_py.point_cloud2
 from geometry_msgs.msg import Twist
 import random
 
-class reactive_move(Node):
+class MoveRobot(Node):
 
     def __init__(self):
         super().__init__('move_robot_node')
@@ -124,13 +124,12 @@ class reactive_move(Node):
 
 
 def main(args=None):
-    print("Node REACTIVE_MOVE started")
+    print("Node MOVE_ROBOT started")
     rclpy.init(args=args)
-    reactive_node = reactive_move()
-    rclpy.spin(reactive_node)
-    reactive_node.destroy_node()
+    moveRobotNode = MoveRobot()
+    rclpy.spin(moveRobotNode)
+    moveRobotNode.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()

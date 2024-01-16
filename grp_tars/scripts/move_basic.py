@@ -8,6 +8,8 @@ import sensor_msgs.msg._point_cloud2 as pc2
 import sensor_msgs_py.point_cloud2
 from geometry_msgs.msg import Twist
 import random
+from kobuki_ros_interfaces.msg import WheelDropEvent
+import time
 
 
 class MoveBasic(Node):
@@ -25,16 +27,20 @@ class MoveBasic(Node):
         self.move_left = self.createMove(0.0, rotation_speed)
         self.move_right = self.createMove(0.0, -rotation_speed)
         self.move_forward = self.createMove(forward_speed, 0.0)
+        self.move_stop = self.createMove(0.0, 0.0)
 
         # Detection parameters
         self.detection_depth = detection_depth
         self.detection_width = detection_width
 
-        # Flags
+        # Status
         self.isGoingForward = False
         self.un_sur_trois = 0
         self.aTourneADroite = False
         self.aTourneAGauche = False
+        self.leftWheelDroped = False
+        self.rightWheelDroped = False
+        self.stoped = False
 
     def _initTopics(self, topic_move_name):
         self.subscription = self.create_subscription(
@@ -44,6 +50,32 @@ class MoveBasic(Node):
             pc2.PointCloud2, 'laser_link', 10)
         self.move1_publisher = self.create_publisher(
             Twist, topic_move_name, 10)
+        self.wheel_drop_publisher = self.create_subscription(
+            WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
+
+    def wheel_drop_callback(self, wheel_msg):
+        rightWheel = wheel_msg.wheel == 1
+        droped = wheel_msg.state == 1
+        if rightWheel and droped:
+            self.rightWheelDroped = True
+        elif rightWheel and not droped:
+            self.rightWheelDroped = False
+        elif not rightWheel and droped:
+            self.leftWheelDroped = True
+        elif not rightWheel and not droped:
+            self.leftWheelDroped = False
+        if self.robotUp():
+            self.stoped = True
+            self.stopMove()
+        elif self.robotDown() and self.stoped:
+            time.sleep(5)
+            self.stoped = False
+
+    def robotUp(self):
+        return self.leftWheelDroped and self.rightWheelDroped
+
+    def robotDown(self):
+        return not self.leftWheelDroped and not self.rightWheelDroped
 
     def createMove(self, forward, rotation):
         move = Twist()
@@ -103,6 +135,9 @@ class MoveBasic(Node):
         self.un_sur_trois = (self.un_sur_trois+1) % 3
         self.isGoingForward = True
 
+    def stopMove(self):
+        self.move1_publisher.publish(self.move_stop)
+
     def scan_callback(self, scanMsg):
         sample, sampleCloud = self._getSampleCloud(scanMsg)
         self.cloud_publisher.publish(sampleCloud)
@@ -111,24 +146,23 @@ class MoveBasic(Node):
         self.decideMove(number_obstacles_right, number_obstacles_left)
 
     def decideMove(self, number_obstacles_right, number_obstacles_left):
-        # TODO : écouter le topic /events/wheel_drop, pour arrêter le robot quand il est soulevé
-
-        # si bloqué dans un coin
-        if self.isBloque(number_obstacles_right, number_obstacles_left):
-            self.rotateLeft()
-        elif number_obstacles_right > 0:
-            self.rotateLeft()
-        elif number_obstacles_left > 0:
-            self.rotateRight()
-        # 2 fois sur 3 avant de commencer à avancer
-        elif (not self.isGoingForward) and self.un_sur_trois != 0:
-            self.setForwardCurved()
-        # 1 fois sur 3 avant de commencer à avancer
-        elif not self.isGoingForward:
-            self.setForwardStraight()
-        # si peut avancer
-        else:
-            self.moveForward()
+        if not self.stoped:
+            # si bloqué dans un coin
+            if self.isBloque(number_obstacles_right, number_obstacles_left):
+                self.rotateLeft()
+            elif number_obstacles_right > 0:
+                self.rotateLeft()
+            elif number_obstacles_left > 0:
+                self.rotateRight()
+            # 2 fois sur 3 avant de commencer à avancer
+            elif (not self.isGoingForward) and self.un_sur_trois != 0:
+                self.setForwardCurved()
+            # 1 fois sur 3 avant de commencer à avancer
+            elif not self.isGoingForward:
+                self.setForwardStraight()
+            # si peut avancer
+            else:
+                self.moveForward()
 
     def detectInRectangle(self, dim_x, dim_y, scan=0, pointcloud=any):
         cloud_obstacle = []

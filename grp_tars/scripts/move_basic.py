@@ -32,6 +32,8 @@ class MoveBasic(Node):
         # Flags
         self.isGoingForward = False
         self.un_sur_trois = 0
+        self.aTourneADroite = False
+        self.aTourneAGauche = False
 
     def _initTopics(self, topic_move_name):
         self.subscription = self.create_subscription(
@@ -72,14 +74,21 @@ class MoveBasic(Node):
     def rotateLeft(self):
         self.move1_publisher.publish(self.move_left)
         self.isGoingForward = False
+        self.aTourneAGauche = True
 
     def rotateRight(self):
         self.move1_publisher.publish(self.move_right)
         self.isGoingForward = False
+        self.aTourneADroite = True
+
+    def isBloque(self, number_obstacles_right, number_obstacles_left):
+        return self.aTourneADroite and self.aTourneAGauche and (number_obstacles_left > 0 or number_obstacles_right > 0)
 
     def moveForward(self):
         self.move1_publisher.publish(self.move_forward)
         self.isGoingForward = True
+        self.aTourneADroite = False
+        self.aTourneAGauche = False
 
     def setForwardStraight(self):
         self.move_forward.angular.z = 0.0
@@ -99,15 +108,20 @@ class MoveBasic(Node):
         self.decideMove(number_obstacles_right, number_obstacles_left)
     
     def decideMove(self, number_obstacles_right, number_obstacles_left):
-        if number_obstacles_right > 0:
+        # si bloqué dans un coin
+        if self.isBloque(number_obstacles_right, number_obstacles_left):
+            self.rotateLeft()
+        elif number_obstacles_right > 0:
             self.rotateLeft()
         elif number_obstacles_left > 0:
             self.rotateRight()
+        # 2 fois sur 3 avant de commencer à avancer
         elif (not self.isGoingForward) and self.un_sur_trois != 0:
-            print("là")
             self.setForwardCurved()
+        # 1 fois sur 3 avant de commencer à avancer
         elif not self.isGoingForward:
             self.setForwardStraight()
+        # si peut avancer
         else:
             self.moveForward()
 

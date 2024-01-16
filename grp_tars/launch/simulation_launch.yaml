@@ -5,3 +5,4 @@ launch:
       pkg: "grp_tars"
       exec: "move_simulation.py"
       name: "move_simulation_node"
+      args: "--ros-args --params-file config/simulation_param.yaml"

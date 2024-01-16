@@ -13,29 +13,38 @@ class MoveSimulation(Node):
 
     def __init__(self):
         super().__init__('move_simulation_node')
+        self._initTopics()
+
+        # Detection rectangle sides
+        self.LEFT = 2
+        self.RIGHT = 1
+        self.ALL = 0
+
+        # Basic moves
+        self.move_left = self.createMove(0.0, 0.6)
+        self.move_right = self.createMove(0.0, -0.6)
+        self.move_forward = self.createMove(0.7, 0.6)
+        
+        # Flags
+        self.isGoingForward = False
+        self.un_sur_trois = 0
+
+    def _initTopics(self):
         self.subscription = self.create_subscription(
             LaserScan, 'scan',
             self.scan_callback, 50)
         self.cloud_publisher = self.create_publisher(
             pc2.PointCloud2, 'laser_link', 10)
-        self.left = 2
-        self.right = 1
-        self.all = 0
         self.move1_publisher = self.create_publisher(
             Twist, '/cmd_vel', 10)
-        self.move_left = Twist()
-        self.move_left.linear.x = 0.0
-        self.move_left.angular.z = 0.6
-        self.move_right = Twist()
-        self.move_right.linear.x = 0.0
-        self.move_right.angular.z = -0.6
-        self.move_null = Twist()
-        self.move_null.linear.x = 0.7
-        self.move_null.angular.z = 0.0
-        self.parametre = 0
-        self.un_sur_trois = 0
-
-    def scan_callback(self, scanMsg):
+    
+    def createMove(self, forward, rotation):
+        move = Twist()
+        move.linear.x = forward
+        move.angular.z = rotation
+        return move
+    
+    def _getSampleCloud(self, scanMsg):
         obstacles = []
         angle = scanMsg.angle_min
         for aDistance in scanMsg.ranges:
@@ -49,41 +58,59 @@ class MoveSimulation(Node):
         sample = [[round(p[0], 2), round(p[1], 2), 0.0] for p in obstacles]
         sampleCloud = sensor_msgs_py.point_cloud2.create_cloud_xyz32(
             Header(frame_id='laser_link'), sample)
+        return sample, sampleCloud
+    
+    def getObstacleNumbers(self, sample):
+        obstacles_right = self.detectInRectangle(0.3, 0.5, self.RIGHT, sample)
+        obstacles_left = self.detectInRectangle(0.3, 0.5, self.LEFT, sample)
+        return len(obstacles_right), len(obstacles_left)
 
-        # for point in sensor_msgs_py.point_cloud2.read_points(sampleCloud):
-        #     print(point)
+    def rotateLeft(self):
+        self.move1_publisher.publish(self.move_left)
+        self.isGoingForward = False
 
-        self.cloud_publisher.publish(sampleCloud)
-       # try:
-        obstacles_right = self.detectInRectangle(0.3, 0.5, self.right, sample)
-        obstacles_left = self.detectInRectangle(0.3, 0.5, self.left, sample)
-        print("right :", len(obstacles_right),
-              " | left :", len(obstacles_left))
-        if len(obstacles_right) > 0:
-            self.move1_publisher.publish(self.move_left)
-            self.parametre = 0
-        elif len(obstacles_left) > 0:
-            self.move1_publisher.publish(self.move_right)
-            self.parametre = 0
-        elif self.parametre == 0 and self.un_sur_trois != 0:
-            self.move_null.angular.z = (random.uniform(
+    def rotateRight(self):
+        self.move1_publisher.publish(self.move_right)
+        self.isGoingForward = False
+
+    def moveForward(self):
+        self.move1_publisher.publish(self.move_forward)
+        self.isGoingForward = True
+
+    def setForwardStraight(self):
+        self.move_forward.angular.z = 0.0
+        self.un_sur_trois += 1
+        self.isGoingForward = True
+
+    def setForwardCurved(self):
+        self.move_forward.angular.z = (random.uniform(
                 0, 0.1)+0.1)*random.choice([-1, 1])
-            self.parametre = 1
-            self.un_sur_trois = (self.un_sur_trois+1) % 3
-        elif self.parametre == 0:
-            self.move_null.angular.z = 0.0
-            self.move1_publisher.publish(self.move_null)
-            self.parametre = 1
-            self.un_sur_trois += 1
+        self.un_sur_trois = (self.un_sur_trois+1) % 3
+        self.isGoingForward = True
+
+    def scan_callback(self, scanMsg):
+        sample, sampleCloud = self._getSampleCloud(scanMsg)
+        self.cloud_publisher.publish(sampleCloud)
+        number_obstacles_right, number_obstacles_left = self.getObstacleNumbers(sample)
+        self.decideMove(number_obstacles_right, number_obstacles_left)
+    
+    def decideMove(self, number_obstacles_right, number_obstacles_left):
+        # print(number_obstacles_right + number_obstacles_left)
+        if number_obstacles_right > 0:
+            self.rotateLeft()
+        elif number_obstacles_left > 0:
+            self.rotateRight()
+        elif (not self.isGoingForward) and self.un_sur_trois != 0:
+            print("là")
+            self.setForwardCurved()
+        elif not self.isGoingForward:
+            self.setForwardStraight()
         else:
-            self.move1_publisher.publish(self.move_null)
-            # except:
-            #     print("erreur ", type(sample))
+            self.moveForward()
 
     def detectInRectangle(self, dim_x=3, dim_y=2, scan=0, pointcloud=any):
-
         cloud_obstacle = []
-        if scan == self.all:
+        if scan == self.ALL:
             print("scan all")
             for point in pointcloud:
                 # print("elt de pointCloud", point)
@@ -91,7 +118,7 @@ class MoveSimulation(Node):
                     cloud_obstacle.append(point)
                     print("obstacle trouvé")
             return cloud_obstacle
-        elif scan == self.left:
+        elif scan == self.LEFT:
             # print("droite")
             for point in pointcloud:
                 # print("elt de pointCloud", point)

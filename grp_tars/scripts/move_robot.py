@@ -34,8 +34,6 @@ class MoveRobot(Node):
         self.move_null.angular.z = 0.0  # radian per second
         self.parametre = 0
         self.un_sur_trois = 0
-        # self.detect_publisher = self.create_publisher(
-        #     String, '/detection', 10)
         self.bloque = 0
         self.changement_de_tour_droite = False
         self.changement_de_tour_gauche = False

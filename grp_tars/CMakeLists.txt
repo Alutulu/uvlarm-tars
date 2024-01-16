@@ -16,13 +16,15 @@ install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/
 )
+# Install Rviz configurations
 install(DIRECTORY
   rviz
   DESTINATION share/${PROJECT_NAME}/
 )
-install( PROGRAMS scripts/moove_robot.py DESTINATION lib/${PROJECT_NAME})
+# Install python nodes
+install( PROGRAMS scripts/move_robot.py DESTINATION lib/${PROJECT_NAME})
 install( PROGRAMS scripts/detection.py DESTINATION lib/${PROJECT_NAME})
-install( PROGRAMS scripts/moove_the_robot2.py DESTINATION lib/${PROJECT_NAME})
+install( PROGRAMS scripts/move_simulation.py DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

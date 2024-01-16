@@ -1,15 +1,4 @@
 #!/usr/bin/env python3
-# Doc: https://dev.intelrealsense.com/docs/python2
-
-###############################################
-##      Open CV and Numpy integration        ##
-###############################################
-
-# Note importante pour détecter les bouteilles : utiliser les seuils pour détecter le vert des bouteilles en RGB
-# --> Comme ça peut varier en fonction de la luminosité, il faut d'abord convertir les canaux RGB en canaux HSV, qui a l'intensité lumineuse en paramètre, avant de faire le seuillage
-# --> on obtient alors un masque blanc correspondant à la bouteille, puis s'intéresser à la depth de la bouteille
-# --> enlever le "bruit" aussi : il y aura des petits pixels blancs isolés, qu'il faudra "gommer" (surement par érosion)
-
 import pyrealsense2 as rs
 import signal
 import time
@@ -22,11 +11,9 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
 
-
-# Realsense Node:
 class Realsense(Node):
     def __init__(self, fps=60):
-        super().__init__('realsense')
+        super().__init__('detection_node')
         # Configure depth and color streams
         self.pipeline = rs.pipeline()
         self.config = rs.config()

@@ -3,5 +3,5 @@ launch:
       file: "$(find-pkg-share tbot_sim)/launch/challenge-1.launch.py"
   - node:
       pkg: "grp_tars"
-      exec: "moove_robot.py"
-      name: "moove_robot"
+      exec: "move_simulation.py"
+      name: "move_simulation_node"

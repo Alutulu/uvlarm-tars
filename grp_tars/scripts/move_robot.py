@@ -8,13 +8,11 @@ import sensor_msgs.msg._point_cloud2 as pc2
 import sensor_msgs_py.point_cloud2
 from geometry_msgs.msg import Twist
 import random
-# test
-
 
 class reactive_move(Node):
 
     def __init__(self):
-        super().__init__('reactive_node')
+        super().__init__('move_robot_node')
         self.subscription = self.create_subscription(
             LaserScan, 'scan',
             self.scan_callback, 50)
@@ -24,7 +22,7 @@ class reactive_move(Node):
         self.right = 1
         self.all = 0
         self.move1_publisher = self.create_publisher(
-            Twist, '/cmd_vel', 10)
+            Twist, '/multi/cmd_nav', 10)
         self.move_left = Twist()
         self.move_left.linear.x = 0.0  # meter per second
         self.move_left.angular.z = 0.6  # radian per second
@@ -32,10 +30,15 @@ class reactive_move(Node):
         self.move_right.linear.x = 0.0  # meter per second
         self.move_right.angular.z = -0.6  # radian per second
         self.move_null = Twist()
-        self.move_null.linear.x = 0.7  # meter per second
+        self.move_null.linear.x = 0.25  # meter per second
         self.move_null.angular.z = 0.0  # radian per second
         self.parametre = 0
         self.un_sur_trois = 0
+        # self.detect_publisher = self.create_publisher(
+        #     String, '/detection', 10)
+        self.bloque = 0
+        self.changement_de_tour_droite = False
+        self.changement_de_tour_gauche = False
 
     def scan_callback(self, scanMsg):
         obstacles = []
@@ -61,26 +64,36 @@ class reactive_move(Node):
         obstacles_left = self.detectInRectangle(0.3, 0.5, self.left, sample)
         print("right :", len(obstacles_right),
               " | left :", len(obstacles_left))
-        if len(obstacles_right) > 0:
+        if self.changement_de_tour_gauche and self.changement_de_tour_droite and (len(obstacles_left) > 0 or len(obstacles_right)) > 0:
+            self.move1_publisher.publish(self.move_left)
+        elif len(obstacles_right) > 0:
             self.move1_publisher.publish(self.move_left)
             self.parametre = 0
+            self.changement_de_tour_gauche = True
+
         elif len(obstacles_left) > 0:
             self.move1_publisher.publish(self.move_right)
             self.parametre = 0
+            self.changement_de_tour_droite = True
+
         elif self.parametre == 0 and self.un_sur_trois != 0:
             self.move_null.angular.z = (random.uniform(
-                0, 0.1)+0.1)*random.choice([-1, 1])
+                0, 0.3)+0.3)*random.choice([-1, 1])
             self.parametre = 1
             self.un_sur_trois = (self.un_sur_trois+1) % 3
+            self.changement_de_tour_droite = False
+            self.changement_de_tour_gauche = False
         elif self.parametre == 0:
             self.move_null.angular.z = 0.0
+
             self.move1_publisher.publish(self.move_null)
             self.parametre = 1
             self.un_sur_trois += 1
+            self.changement_de_tour_droite = False
+            self.changement_de_tour_gauche = False
         else:
+
             self.move1_publisher.publish(self.move_null)
-            # except:
-            #     print("erreur ", type(sample))
 
     def detectInRectangle(self, dim_x=3, dim_y=2, scan=0, pointcloud=any):
 

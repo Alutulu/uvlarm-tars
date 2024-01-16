@@ -9,9 +9,10 @@ import sensor_msgs_py.point_cloud2
 from geometry_msgs.msg import Twist
 import random
 
+
 class MoveBasic(Node):
 
-    def __init__(self, node_name, rotation_speed = 0.6, forward_speed = 0.25, detection_depth = 3, detection_width = 2, topic_move_name = '/multi/cmd_nav'):
+    def __init__(self, node_name, rotation_speed=0.6, forward_speed=0.25, detection_depth=3, detection_width=2, topic_move_name='/multi/cmd_nav'):
         super().__init__(node_name)
         self._initTopics(topic_move_name)
 
@@ -28,7 +29,7 @@ class MoveBasic(Node):
         # Detection parameters
         self.detection_depth = detection_depth
         self.detection_width = detection_width
-        
+
         # Flags
         self.isGoingForward = False
         self.un_sur_trois = 0
@@ -43,13 +44,13 @@ class MoveBasic(Node):
             pc2.PointCloud2, 'laser_link', 10)
         self.move1_publisher = self.create_publisher(
             Twist, topic_move_name, 10)
-    
+
     def createMove(self, forward, rotation):
         move = Twist()
         move.linear.x = forward
         move.angular.z = rotation
         return move
-    
+
     def _getSampleCloud(self, scanMsg):
         obstacles = []
         angle = scanMsg.angle_min
@@ -65,9 +66,10 @@ class MoveBasic(Node):
         sampleCloud = sensor_msgs_py.point_cloud2.create_cloud_xyz32(
             Header(frame_id='laser_link'), sample)
         return sample, sampleCloud
-    
+
     def getObstacleNumbers(self, sample):
-        obstacles_right = self.detectInRectangle(self.detection_depth, self.detection_width, self.RIGHT, sample)
+        obstacles_right = self.detectInRectangle(
+            self.detection_depth, self.detection_width, self.RIGHT, sample)
         obstacles_left = self.detectInRectangle(0.3, 0.5, self.LEFT, sample)
         return len(obstacles_right), len(obstacles_left)
 
@@ -97,17 +99,20 @@ class MoveBasic(Node):
 
     def setForwardCurved(self):
         self.move_forward.angular.z = (random.uniform(
-                0, 0.1)+0.1)*random.choice([-1, 1])
+            0, 0.1)+0.1)*random.choice([-1, 1])
         self.un_sur_trois = (self.un_sur_trois+1) % 3
         self.isGoingForward = True
 
     def scan_callback(self, scanMsg):
         sample, sampleCloud = self._getSampleCloud(scanMsg)
         self.cloud_publisher.publish(sampleCloud)
-        number_obstacles_right, number_obstacles_left = self.getObstacleNumbers(sample)
+        number_obstacles_right, number_obstacles_left = self.getObstacleNumbers(
+            sample)
         self.decideMove(number_obstacles_right, number_obstacles_left)
-    
+
     def decideMove(self, number_obstacles_right, number_obstacles_left):
+        # TODO : écouter le topic /events/wheel_drop, pour arrêter le robot quand il est soulevé
+
         # si bloqué dans un coin
         if self.isBloque(number_obstacles_right, number_obstacles_left):
             self.rotateLeft()

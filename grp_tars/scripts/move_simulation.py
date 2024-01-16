@@ -95,7 +95,6 @@ class MoveSimulation(Node):
         self.decideMove(number_obstacles_right, number_obstacles_left)
     
     def decideMove(self, number_obstacles_right, number_obstacles_left):
-        # print(number_obstacles_right + number_obstacles_left)
         if number_obstacles_right > 0:
             self.rotateLeft()
         elif number_obstacles_left > 0:
@@ -113,23 +112,17 @@ class MoveSimulation(Node):
         if scan == self.ALL:
             print("scan all")
             for point in pointcloud:
-                # print("elt de pointCloud", point)
                 if abs(point[1]) <= dim_y/2 and point[0] < dim_x and point[0] >= 0:
                     cloud_obstacle.append(point)
                     print("obstacle trouvé")
             return cloud_obstacle
         elif scan == self.LEFT:
-            # print("droite")
             for point in pointcloud:
-                # print("elt de pointCloud", point)
                 if point[1] <= dim_y/2 and point[1] >= 0 and point[0] < dim_x and point[0] >= 0:
                     cloud_obstacle.append(point)
             return cloud_obstacle
         else:
-            # print("droite")
             for point in pointcloud:
-                # print(point[0], point[1])
-                # print("elt de pointCloud", point)
                 if point[1] >= -dim_y/2 and point[1] <= 0 and point[0] < dim_x and point[0] >= 0:
                     cloud_obstacle.append(point)
             return cloud_obstacle

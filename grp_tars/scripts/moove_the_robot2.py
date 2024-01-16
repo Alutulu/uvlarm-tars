@@ -33,7 +33,7 @@ class reactive_move(Node):
         self.move_right.linear.x = 0.0  # meter per second
         self.move_right.angular.z = -0.6  # radian per second
         self.move_null = Twist()
-        self.move_null.linear.x = 0.4  # meter per second
+        self.move_null.linear.x = 0.25  # meter per second
         self.move_null.angular.z = 0.0  # radian per second
         self.parametre = 0
         self.un_sur_trois = 0

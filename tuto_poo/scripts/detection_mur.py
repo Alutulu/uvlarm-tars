@@ -33,7 +33,6 @@ class reactive_move(Node):
         self.move_null = Twist()
         self.move_null.linear.x = 0.5  # meter per second
         self.move_null.angular.z = 0.0  # radian per second
-        self.k = 0
 
     def scan_callback(self, scanMsg):
         obstacles = []
@@ -55,30 +54,16 @@ class reactive_move(Node):
 
         self.cloud_publisher.publish(sampleCloud)
        # try:
-        obstacles_right = self.detectInRectangle(0.15, 0.4, self.right, sample)
-        obstacles_left = self.detectInRectangle(0.15, 0.4, self.left, sample)
-        obstacle_tourner = self.detectInRectangle(
-            0.15, 0.8, self.right, sample)
+        obstacles_right = self.detectInRectangle(0.15, 0.5, self.right, sample)
+        obstacles_left = self.detectInRectangle(0.15, 0.5, self.left, sample)
         print("right :", len(obstacles_right),
               " | left :", len(obstacles_left))
         if len(obstacles_right) > 0:
             self.move1_publisher.publish(self.move_left)
-            self.move_null.angular.z = 0.0
-            print("je tourne à gauche")
-            self.k += 1
-
         elif len(obstacles_left) > 0:
-            self.move1_publisher.publish(self.move_left)
-            self.move_null.angular.z = -0.0
+            self.move1_publisher.publish(self.move_right)
         else:
-            print("hello")
-            print(self.move_null.linear.z)
             self.move1_publisher.publish(self.move_null)
-            if len(obstacle_tourner) == 0 and self.k > 0:
-                self.move_null.angular.z = -1.0
-                print(self.move_null.linear.z)
-                self.k = 0
-
             # except:
             #     print("erreur ", type(sample))
 

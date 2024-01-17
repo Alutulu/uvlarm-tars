@@ -19,17 +19,14 @@ class Detection(Node):
         self.config = rs.config()
         self.detect_publisher = self.create_publisher(
             String, '/detection', 10)
-        self.color = 50
-        self.k = 0
+        self.colorGreen = 50
+        self.bouteilleDansChampsVision = False
 
         self.lo = np.array([self.color-5, 100, 50])
         self.hi = np.array([self.color+5, 255, 255])
 
         self.color_info = (0, 0, 255)
 
-        self.cap = cv2.VideoCapture(0)
-        cv2.namedWindow('Camera')
-        cv2.setMouseCallback('Camera', self.souris)
         self.hsv_px = [0, 0, 0]
 
         # Creating morphological kernel
@@ -42,16 +39,7 @@ class Detection(Node):
         self.device_product_line = str(
             self.device.get_info(rs.camera_info.product_line))
 
-        print(f"Connect: {self.device_product_line}")
-        found_rgb = True  # ligne 27 à 35 vérification que tous les supports fonctionnent
-        for s in self.device.sensors:
-            print("Name:" + s.get_info(rs.camera_info.name))
-            if s.get_info(rs.camera_info.name) == 'RGB Camera':
-                found_rgb = True
-
-        if not (found_rgb):
-            print("Depth camera equired !!!")
-            exit(0)
+        self.checkDevices()
 
         # init stream caméra avec le format
         self.config.enable_stream(
@@ -68,40 +56,23 @@ class Detection(Node):
 
         self.image_publisher = self.create_publisher(Image, 'image_color', 10)
         self.depth_publisher = self.create_publisher(Image, 'image_depth', 10)
-
-        self.config.enable_stream(
-            rs.stream.infrared, 1, 848, 480, rs.format.y8, 60)
-        self.config.enable_stream(
-            rs.stream.infrared, 2, 848, 480, rs.format.y8, 60)
+        
         # Start streaming
         self.pipeline.start(self.config)
 
-        self.infra_publisher_1 = self.create_publisher(Image, 'infrared_1', 10)
-        self.infra_publisher_2 = self.create_publisher(Image, 'infrared_2', 10)
+        self.isOk = True
 
-        sys.stdout.write("-")
+    def checkDevices(self):
+        print(f"Connect: {self.device_product_line}")
+        found_rgb = True
+        for s in self.device.sensors:
+            print("Name:" + s.get_info(rs.camera_info.name))
+            if s.get_info(rs.camera_info.name) == 'RGB Camera':
+                found_rgb = True
 
-    def souris(self, event, x, y, flags, param):
-
-        if event == cv2.EVENT_MOUSEMOVE:
-            # Conversion des trois couleurs RGB sous la souris en HSV
-            px = self.color_image[y, x]
-            px_array = np.uint8([[px]])
-            self.hsv_px = cv2.cvtColor(px_array, cv2.COLOR_BGR2HSV)
-
-        if event == cv2.EVENT_MBUTTONDBLCLK:
-            self.color = self.image[y, x][0]
-
-        if event == cv2.EVENT_LBUTTONDOWN:
-            if self.color > 5:
-                self.color -= 1
-
-        if event == cv2.EVENT_RBUTTONDOWN:
-            if self.color < 250:
-                self.color += 1
-
-        self.lo[0] = self.color-10
-        self.hi[0] = self.color+10
+        if not (found_rgb):
+            print("Depth camera equired !!!")
+            exit(0)
 
     def read_imgs(self):
         # Wait for a coherent tuple of frames: depth, color and accel
@@ -123,22 +94,6 @@ class Detection(Node):
 
         # depth_colormap_dim = depth_colormap.shape
         # color_colormap_dim = self.color_image.shape
-
-        # infra_frame_1 = frames.get_infrared_frame(1)
-        # infra_frame_2 = frames.get_infrared_frame(2)
-        # infra_image_1 = np.asanyarray(infra_frame_1.get_data())
-        # infra_image_2 = np.asanyarray(infra_frame_2.get_data())
-
-        # Utilisation de colormap sur l'image infrared de la Realsense (image convertie en 8-bit par pixel)
-        # self.infra_colormap_1 = cv2.applyColorMap(
-        #     cv2.convertScaleAbs(infra_image_1, alpha=1), cv2.COLORMAP_JET)
-
-        # # Utilisation de colormap sur l'image infrared de la Realsense (image convertie en 8-bit par pixel)
-        # self.infra_colormap_2 = cv2.applyColorMap(
-        #     cv2.convertScaleAbs(infra_image_2, alpha=1), cv2.COLORMAP_JET)
-
-        # sys.stdout.write(
-        #     f"\r- {color_colormap_dim} - {depth_colormap_dim} - ({round(self.freq)} fps)")
 
         self.image = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(self.image, self.lo, self.hi)
@@ -162,12 +117,9 @@ class Detection(Node):
             c = max(elements, key=cv2.contourArea)
             ((x, y), rayon) = cv2.minEnclosingCircle(c)
             if rayon > 30:
-                if self.k == 0:
-
-                    message = String()
-                    message.data = "bouteille detecté"
-                    self.detect_publisher.publish(message)
-                    self.k = 1
+                if not self.bouteilleDansChampsVision:
+                    self.publishMessage("Bouteille détectée")
+                    self.bouteilleDansChampsVision = True
                 cv2.circle(image2, (int(x), int(y)),
                            int(rayon), self.color_info, 2)
                 cv2.circle(self.color_image, (int(x), int(y)),
@@ -176,11 +128,9 @@ class Detection(Node):
                          (int(x)+150, int(y)), self.color_info, 2)
                 cv2.putText(self.color_image, "Objet !!!", (int(x)+10, int(y) - 10),
                             cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
-            elif self.k == 1:
-                message2 = String()
-                message2.data = "Bouteille disparue"
-                self.detect_publisher.publish(message2)
-                self.k = 0
+            elif self.bouteilleDansChampsVision:
+                self.publishMessage("Bouteille disparue")
+                self.bouteilleDansChampsVision = False
 
         # Show images
         images = np.hstack((self.color_image, image2))
@@ -191,6 +141,9 @@ class Detection(Node):
         cv2.waitKey(1)
 
         # Frequency:
+        self.updateFrequency()
+
+    def updateFrequency(self):
         if self.count == 10:
             newTime = time.process_time()
             self.freq = 10/((newTime-self.refTime))
@@ -198,38 +151,41 @@ class Detection(Node):
             self.count = 0
         self.count += 1
 
+    def publishMessage(self, message):
+        str_message = String()
+        str_message.data = message
+        self.detect_publisher.publish(str_message)
+
     def publish_imgs(self):
 
-        msg_image = self.bridge.cv2_to_imgmsg(self.color_image, "bgr8")
-        msg_image.header.stamp = self.get_clock().now().to_msg()
-        msg_image.header.frame_id = "image"
-        self.image_publisher.publish(msg_image)
+        timestamp = self.get_clock().now().to_msg()
+        self.publish_img(self.color_image, "image", timestamp)
 
         # Utilisation de colormap sur l'image depth de la Realsense (image convertie en 8-bit par pixel)
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
             self.depth_image, alpha=0.2), cv2.COLORMAP_JET)
 
-        msg_depth = self.bridge.cv2_to_imgmsg(depth_colormap, "bgr8")
-        msg_depth.header.stamp = msg_image.header.stamp
-        msg_depth.header.frame_id = "depth"
-        self.depth_publisher.publish(msg_depth)
+        self.publish_img(depth_colormap, "depth", timestamp)
+
+    def publish_img(self, image, frame_id, timestamp):
+        msg_image = self.bridge.cv2_to_imgmsg(image, "bgr8")
+        msg_image.header.stamp = timestamp
+        msg_image.header.frame_id = frame_id
+        self.image_publisher.publish(msg_image)
 
     def signalInteruption(self, signum, frame):
-        global isOk
         print("\nCtrl-c pressed")
-        isOk = False
+        self.isOk = False
 
 def main(args=None):
     print("Node DETECTION started")
-    isOk = True # Capture ctrl-c event
     rclpy.init(args=args)
     detectNode = Detection()
-    while isOk:
+    while detectNode.isOk:
         detectNode.read_imgs()
         detectNode.publish_imgs()
         rclpy.spin_once(detectNode, timeout_sec=0.001)
-    print("\nEnding detection...")
-    rclpy.spin(detectNode)
+    print("\nDestroying DETECTION NODE...")
     detectNode.pipeline.stop()
     detectNode.destroy_node()
     rclpy.shutdown()

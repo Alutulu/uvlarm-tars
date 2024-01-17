@@ -14,8 +14,21 @@ import time
 
 class MoveBasic(Node):
 
-    def __init__(self, node_name, rotation_speed=0.6, forward_speed=0.25, detection_depth=3, detection_width=2, topic_move_name='/multi/cmd_nav'):
+    def __init__(self, node_name):
         super().__init__(node_name)
+
+        # Load parameters
+        self.declare_parameter('topic_move_name')
+        topic_move_name = self.get_parameter('topic_move_name').get_parameter_value().string_value
+        self.declare_parameter('rotation_speed')
+        rotation_speed = self.get_parameter('rotation_speed').get_parameter_value().double_value
+        self.declare_parameter('forward_speed')
+        forward_speed = self.get_parameter('forward_speed').get_parameter_value().double_value
+        self.declare_parameter('detection_depth')
+        detection_depth = self.get_parameter('detection_depth').get_parameter_value().double_value
+        self.declare_parameter('detection_width')
+        detection_width = self.get_parameter('detection_width').get_parameter_value().double_value
+
         self._initTopics(topic_move_name)
 
         # Detection rectangle sides

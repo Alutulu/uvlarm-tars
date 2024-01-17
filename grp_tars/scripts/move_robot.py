@@ -7,7 +7,7 @@ def main(args=None):
     print("Node MOVE_SIMULATION started")
     rclpy.init(args=args)
     moveSimulationNode = MoveBasic(
-        'move_robot_node', 0.6, 0.25, 0.3, 0.5, '/multi/cmd_nav')
+        'move_robot_node')
     rclpy.spin(moveSimulationNode)
     moveSimulationNode.destroy_node()
     rclpy.shutdown()

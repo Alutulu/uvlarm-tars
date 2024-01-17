@@ -1,17 +1,33 @@
 launch:
-  - include:
-      file: "$(find-pkg-share tbot_node)/launch/minimal_launch.yaml"
-  - node:
-      pkg: "grp_tars"
-      exec: "move_robot.py"
-      name: "moove_robot_node"
-  - node:
-      pkg: "grp_tars"
-      exec: "detection.py"
-      name: "detection_node"
-  - node:
-      pkg: "rviz2"
-      exec: "rviz2"
-      name: "rviz"
-      namespace: "rviz_1"
-      args: " -d $(find-pkg-share grp_tars)/rviz/conf_rviz.rviz"
+- include:
+    file: "$(find-pkg-share tbot_node)/launch/minimal_launch.yaml"
+- node:
+    pkg: "grp_tars"
+    exec: "move_robot.py"
+    name: "moove_robot_node"
+    param:
+    -
+        name: "rotation_speed"
+        value: 0.6
+    -
+        name: "forward_speed"
+        value: 0.25
+    -
+        name: "detection_depth"
+        value: 0.3
+    -
+        name: "detection_width"
+        value: 0.5
+    -
+        name: "topic_move_name"
+        value: "/multi/cmd_nav"
+- node:
+    pkg: "grp_tars"
+    exec: "detection.py"
+    name: "detection_node"
+- node:
+    pkg: "rviz2"
+    exec: "rviz2"
+    name: "rviz"
+    namespace: "rviz_1"
+    args: " -d $(find-pkg-share grp_tars)/rviz/conf_rviz.rviz"

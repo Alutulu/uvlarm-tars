@@ -58,6 +58,10 @@ class Detection(Node):
         
         # Start streaming
         self.pipeline.start(self.config)
+        align_to = rs.stream.depth
+        self.align = rs.align(align_to)
+
+
         self.isOk = True
         self.testi = 0
 
@@ -95,7 +99,7 @@ class Detection(Node):
         res = self.captureFrame()
         if res == -1:
             return
-        self.color_image, self.depth_image = res
+        self.color_image, self.depth_image, self.displayed_color_frame = res
         # Dim usually is equal to 480, 848, 3
         color_colormap_dim = self.color_image.shape
         depth_colormap_dim = self.depth_image.shape
@@ -110,18 +114,18 @@ class Detection(Node):
         mask = cv2.erode(mask, self.kernel, iterations=4)
         mask = cv2.dilate(mask, self.kernel, iterations=4)
         image2 = cv2.bitwise_and(self.color_image, self.color_image, mask=mask)
-        cv2.putText(self.color_image, "Couleur: {:d}".format(
+        cv2.putText(self.displayed_color_frame, "Couleur: {:d}".format(
             self.colorGreen), (10, 30), cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
         # Affichage des composantes HSV sous la souris sur l'image
         pixel_hsv = " ".join(str(values) for values in self.hsv_px)
 
         font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(self.color_image, "px HSV: "+pixel_hsv, (10, 260),
+        cv2.putText(self.displayed_color_frame, "px HSV: "+pixel_hsv, (10, 260),
                     font, 1, (255, 255, 255), 1, cv2.LINE_AA)
-        self.findObjects(image2, mask)
+        self.findObjects(image2, mask, self.displayed_color_frame)
 
         # Show images
-        images = np.hstack((self.color_image, image2))
+        images = np.hstack((self.displayed_color_frame, image2))
         cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
         cv2.imshow('RealSense', images)
         cv2.waitKey(1)
@@ -132,11 +136,14 @@ class Detection(Node):
     def captureFrame(self):
         # Wait for a coherent tuple of frames: depth, color and accel
         frames = self.pipeline.wait_for_frames()
-        color_frame = frames.first(rs.stream.color)
-        depth_frame = frames.first(rs.stream.depth)
+        aligned_frames = self.align.process(frames)
+        depth_frame = aligned_frames.get_depth_frame()
+        color_frame = aligned_frames.get_color_frame()
+        displayed_color_frame = frames.first(rs.stream.color)
         if not (depth_frame and color_frame):
             return -1
-        return np.asanyarray(color_frame.get_data()), np.asanyarray(depth_frame.get_data())
+
+        return np.asanyarray(color_frame.get_data()), np.asanyarray(depth_frame.get_data()), np.asanyarray(displayed_color_frame.get_data())
 
     def drawCircle(self, image, x, y, rayon):
         cv2.circle(image, (int(x), int(y)),
@@ -161,7 +168,7 @@ class Detection(Node):
             self.currentDistance = round(sum(self.distanceSample) / (len(self.distanceSample)), 2)
             self.distanceSample = []
     
-    def findObjects(self, image, mask):
+    def findObjects(self, image, mask, displayed_image):
         elements = cv2.findContours(mask, cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_SIMPLE)[-2]
         if len(elements) > 0:

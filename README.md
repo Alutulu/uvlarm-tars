@@ -32,6 +32,7 @@ ros2 launch grp_tars <launchfile>
 - Algo frontier base pour que le robot explore en priorité les régions inconnues
 - **Important** : Prendre en compte la taille des bouteilles (pour ne pas détecter des objets de taille différente), grâce au rapport en la profondeur et la taille du cercle max détecté
 - Faire une accélération _smooth_
+- Pour être sûr de alculer la bonne distance, utiliser le code de calcul de la distance grâce à la depth présent à la fin du cours "VISION" dans le gitbook. 
 
 ## Tutos
 

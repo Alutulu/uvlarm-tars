@@ -61,6 +61,9 @@ class Detection(Node):
         self.isOk = True
         self.testi = 0
 
+        self.distanceSample = []
+        self.currentDistance = -1
+
 
     def checkDevices(self):
         print(f"Connect: {self.device_product_line}")
@@ -75,10 +78,11 @@ class Detection(Node):
             exit(0)
 
     def getDistance(self, lig=240, col=424):
+        # résultat en mm
         return self.depth_image[int(lig)][int(col)]
     
     def getMeanDistance(self, lig=240, col=424, delta=5):
-        # résultat en mètres
+        # résultat en m
         sum = 0
         deltaRange = [-delta, 0, delta]
         for dx in deltaRange:
@@ -145,9 +149,17 @@ class Detection(Node):
                     (int(x)+150, int(y)), self.color_info, 2)
         cv2.putText(image, "Bouteille", (int(x)+10, int(y) - 10),
                     cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
-        cv2.putText(image, str(distance) + " m", (int(x)+20, int(y) + 30),
+        if self.currentDistance > 0:
+            cv2.putText(image, str(self.currentDistance) + " m", (int(x)+20, int(y) + 30),
                     cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
-
+        
+    def updateDistance(self, lig=240, col=424):
+        # résultat de la distance en mètres
+        distance = self.getMeanDistance(lig, col)
+        self.distanceSample.append(distance)
+        if len(self.distanceSample) >= 50:
+            self.currentDistance = round(sum(self.distanceSample) / (len(self.distanceSample)), 2)
+            self.distanceSample = []
     
     def findObjects(self, image, mask):
         elements = cv2.findContours(mask, cv2.RETR_EXTERNAL,
@@ -159,9 +171,10 @@ class Detection(Node):
                 if not self.bouteilleDansChampsVision:
                     self.publishMessage("Bouteille détectée")
                     self.bouteilleDansChampsVision = True
-                distance = self.getMeanDistance(y, x)
+                # self.updateDistance(y, x)
+                self.currentDistance = self.getMeanDistance(y, x)
                 self.drawCircle(image, x, y, rayon)
-                self.labelObject(self.color_image, x, y, distance)
+                self.labelObject(self.color_image, x, y, self.currentDistance)
             elif self.bouteilleDansChampsVision:
                 self.publishMessage("Bouteille disparue")
                 self.bouteilleDansChampsVision = False

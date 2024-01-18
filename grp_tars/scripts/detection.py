@@ -3,7 +3,6 @@ import pyrealsense2 as rs
 import signal
 import time
 import numpy as np
-import sys
 import cv2
 import rclpy
 from rclpy.node import Node
@@ -22,8 +21,8 @@ class Detection(Node):
         self.colorGreen = 50
         self.bouteilleDansChampsVision = False
 
-        self.lo = np.array([self.color-5, 100, 50])
-        self.hi = np.array([self.color+5, 255, 255])
+        self.lo = np.array([self.colorGreen-5, 100, 50])
+        self.hi = np.array([self.colorGreen+5, 255, 255])
 
         self.color_info = (0, 0, 255)
 
@@ -59,8 +58,9 @@ class Detection(Node):
         
         # Start streaming
         self.pipeline.start(self.config)
-
         self.isOk = True
+        self.testi = 0
+
 
     def checkDevices(self):
         print(f"Connect: {self.device_product_line}")
@@ -74,26 +74,31 @@ class Detection(Node):
             print("Depth camera equired !!!")
             exit(0)
 
+    def getDistance(self, lig=240, col=424):
+        return self.depth_image[int(lig)][int(col)]
+    
+    def getMeanDistance(self, lig=240, col=424, delta=5):
+        # résultat en mètres
+        sum = 0
+        deltaRange = [-delta, 0, delta]
+        for dx in deltaRange:
+            for dy in deltaRange:
+                sum += self.getDistance(lig+dx, col+dy)
+        return round(sum / 9000, 2)
+
     def read_imgs(self):
-        # Wait for a coherent tuple of frames: depth, color and accel
-        frames = self.pipeline.wait_for_frames()
 
-        color_frame = frames.first(rs.stream.color)
-        depth_frame = frames.first(rs.stream.depth)
-
-        if not (depth_frame and color_frame):
+        res = self.captureFrame()
+        if res == -1:
             return
-
-        # Convert images to numpy arrays
-        self.depth_image = np.asanyarray(depth_frame.get_data())
-        self.color_image = np.asanyarray(color_frame.get_data())
+        self.color_image, self.depth_image = res
+        # Dim usually is equal to 480, 848, 3
+        color_colormap_dim = self.color_image.shape
+        depth_colormap_dim = self.depth_image.shape
 
         # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
         # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
         #     self.depth_image, alpha=0.15), cv2.COLORMAP_JET)
-
-        # depth_colormap_dim = depth_colormap.shape
-        # color_colormap_dim = self.color_image.shape
 
         self.image = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(self.image, self.lo, self.hi)
@@ -102,15 +107,49 @@ class Detection(Node):
         mask = cv2.dilate(mask, self.kernel, iterations=4)
         image2 = cv2.bitwise_and(self.color_image, self.color_image, mask=mask)
         cv2.putText(self.color_image, "Couleur: {:d}".format(
-            self.color), (10, 30), cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
-
+            self.colorGreen), (10, 30), cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
         # Affichage des composantes HSV sous la souris sur l'image
         pixel_hsv = " ".join(str(values) for values in self.hsv_px)
 
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(self.color_image, "px HSV: "+pixel_hsv, (10, 260),
                     font, 1, (255, 255, 255), 1, cv2.LINE_AA)
+        self.findObjects(image2, mask)
 
+        # Show images
+        images = np.hstack((self.color_image, image2))
+        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('RealSense', images)
+        cv2.waitKey(1)
+
+        # Frequency:
+        self.updateFrequency()
+
+    def captureFrame(self):
+        # Wait for a coherent tuple of frames: depth, color and accel
+        frames = self.pipeline.wait_for_frames()
+        color_frame = frames.first(rs.stream.color)
+        depth_frame = frames.first(rs.stream.depth)
+        if not (depth_frame and color_frame):
+            return -1
+        return np.asanyarray(color_frame.get_data()), np.asanyarray(depth_frame.get_data())
+
+    def drawCircle(self, image, x, y, rayon):
+        cv2.circle(image, (int(x), int(y)),
+            int(rayon), self.color_info, 2)
+        
+    def labelObject(self, image, x, y, distance):
+        cv2.circle(image, (int(x), int(y)),
+                    5, self.color_info, 10)
+        cv2.line(image, (int(x), int(y)),
+                    (int(x)+150, int(y)), self.color_info, 2)
+        cv2.putText(image, "Bouteille", (int(x)+10, int(y) - 10),
+                    cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
+        cv2.putText(image, str(distance) + " m", (int(x)+20, int(y) + 30),
+                    cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
+
+    
+    def findObjects(self, image, mask):
         elements = cv2.findContours(mask, cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_SIMPLE)[-2]
         if len(elements) > 0:
@@ -120,28 +159,13 @@ class Detection(Node):
                 if not self.bouteilleDansChampsVision:
                     self.publishMessage("Bouteille détectée")
                     self.bouteilleDansChampsVision = True
-                cv2.circle(image2, (int(x), int(y)),
-                           int(rayon), self.color_info, 2)
-                cv2.circle(self.color_image, (int(x), int(y)),
-                           5, self.color_info, 10)
-                cv2.line(self.color_image, (int(x), int(y)),
-                         (int(x)+150, int(y)), self.color_info, 2)
-                cv2.putText(self.color_image, "Objet !!!", (int(x)+10, int(y) - 10),
-                            cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
+                distance = self.getMeanDistance(y, x)
+                self.drawCircle(image, x, y, rayon)
+                self.labelObject(self.color_image, x, y, distance)
             elif self.bouteilleDansChampsVision:
                 self.publishMessage("Bouteille disparue")
                 self.bouteilleDansChampsVision = False
 
-        # Show images
-        images = np.hstack((self.color_image, image2))
-
-        # Show images
-        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-        cv2.imshow('RealSense', images)
-        cv2.waitKey(1)
-
-        # Frequency:
-        self.updateFrequency()
 
     def updateFrequency(self):
         if self.count == 10:

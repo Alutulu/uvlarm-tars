@@ -178,10 +178,10 @@ class Detection(Node):
                 if not self.bouteilleDansChampsVision:
                     self.publishMessage("Bouteille détectée")
                     self.bouteilleDansChampsVision = True
-                # self.updateDistance(y, x)
-                self.currentDistance = self.getMeanDistance(y, x)
+                self.updateDistance(y, x)
+                # self.currentDistance = self.getMeanDistance(y, x)
                 self.drawCircle(image, x, y, rayon)
-                self.labelObject(self.color_image, x, y, self.currentDistance)
+                self.labelObject(displayed_image, x, y, self.currentDistance)
             elif self.bouteilleDansChampsVision:
                 self.publishMessage("Bouteille disparue")
                 self.bouteilleDansChampsVision = False

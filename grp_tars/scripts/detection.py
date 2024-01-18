@@ -67,6 +67,7 @@ class Detection(Node):
 
         self.distanceSample = []
         self.currentDistance = -1
+        # TODO on peut faire un moyenne de la position de la bouteille aussi
 
 
     def checkDevices(self):

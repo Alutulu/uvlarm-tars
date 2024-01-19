@@ -10,10 +10,11 @@ class MoveBasic(Node):
         super().__init__(node_name)
         self.i = 0
 
-        self.position = PointStamped()
-        self.position.point.x = 0.00
-        self.position.point.y = 0.000
-        self.position.point.z = 0.002
+
+        self.position=PointStamped()
+        self.position.point.x=0.0
+        self.position.point.y=-0.0
+        self.position.point.z=-0.00032126060055376326
         self.position.header.frame_id = 'map'
         self.position.header.stamp = self.get_clock().now().to_msg()
         self.pub = self.create_publisher(PointStamped, topic_move_name, 10)

@@ -18,11 +18,13 @@ class Detection(Node):
         self.config = rs.config()
         self.detect_publisher = self.create_publisher(
             String, '/detection', 10)
-        self.colorGreen = 50
+        self.colorGreen = 55
         self.bouteilleDansChampsVision = False
+        self.deltaColor = 40
+        self.sizeDistanceSample = 10
 
-        self.lo = np.array([self.colorGreen-5, 100, 50])
-        self.hi = np.array([self.colorGreen+5, 255, 255])
+        self.lo = np.array([self.colorGreen-int(self.deltaColor/2), 100, 50])
+        self.hi = np.array([self.colorGreen+int(self.deltaColor/2), 255, 255])
 
         self.color_info = (0, 0, 255)
 
@@ -155,7 +157,7 @@ class Detection(Node):
                     5, self.color_info, 10)
         cv2.line(image, (int(x), int(y)),
                     (int(x)+150, int(y)), self.color_info, 2)
-        cv2.putText(image, "Bouteille", (int(x)+10, int(y) - 10),
+        cv2.putText(image, "Bouteille", (int(x) + int(self.deltaColor/2), int(y) - int(self.deltaColor/2)),
                     cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
         if self.currentDistance > 0:
             cv2.putText(image, str(self.currentDistance) + " m", (int(x)+20, int(y) + 30),
@@ -165,7 +167,7 @@ class Detection(Node):
         # résultat de la distance en mètres
         distance = self.getMeanDistance(lig, col)
         self.distanceSample.append(distance)
-        if len(self.distanceSample) >= 50:
+        if len(self.distanceSample) >= self.sizeDistanceSample:
             self.currentDistance = round(sum(self.distanceSample) / (len(self.distanceSample)), 2)
             self.distanceSample = []
     

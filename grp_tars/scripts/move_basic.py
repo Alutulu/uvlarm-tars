@@ -81,13 +81,14 @@ class MoveBasic(Node):
         yaw = np.arctan2(siny_cosp, cosy_cosp)
         return yaw
 
-    def coordBouteilleRelative(self, distance):
+    def coordBouteilleRelative(self, distance, dy):
         x = distance * math.cos(self.angle)
-        y = distance * math.sin(self.angle)
+        y = distance * math.sin(self.angle) + dy
+        print(dy)
         return x, y
 
-    def coordBouteilleAbsolute(self, distance):
-        x, y = self.coordBouteilleRelative(distance)
+    def coordBouteilleAbsolute(self, distance, dy):
+        x, y = self.coordBouteilleRelative(distance, dy)
         return x + self.x, y + self.y
 
     def _initTopics(self, topic_move_name):
@@ -110,12 +111,13 @@ class MoveBasic(Node):
             ButtonEvent, '/events/button', self.button_callback, 50)
 
     def detection_callback(self, detect_msg):
-        if len(detect_msg.data.split()) > 1:
-            first_word, second_word = detect_msg.data.split()
+        if len(detect_msg.data.split()) == 3:
+            first_word, second_word, third_word = detect_msg.data.split()
             if first_word == 'bouteille':
                 distance = float(second_word)
-                coord = self.coordBouteilleAbsolute(distance)
-                print(round(coord[0], 1), round(coord[1], 1))
+                dy = float(third_word) - 0.12  # offset
+                coord = self.coordBouteilleAbsolute(distance, dy)
+                # print(round(coord[0], 1), round(coord[1], 1))
             else:
                 print(detect_msg.data)
 

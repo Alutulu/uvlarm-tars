@@ -9,6 +9,7 @@ from rclpy.node import Node
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
+import math
 
 
 class Detection(Node):
@@ -19,7 +20,7 @@ class Detection(Node):
         self.config = rs.config()
         self.detect_publisher = self.create_publisher(
             String, '/detection', 10)
-        self.colorGreen = 55
+        self.colorGreen = 60
         self.deltaColor = 40
         self.sizeDistanceSample = 10
 
@@ -71,7 +72,11 @@ class Detection(Node):
 
         self.distanceSample = []
         self.currentDistance = -1
+
+        self.currentY = 0
+        self.ysample = []
         # TODO on peut faire un moyenne de la position de la bouteille aussi
+        # TODO regarder dans VISION la deproj (pour obtenir la vraie position de la bouteille selon sa position sur l'écran)
 
     def checkDevices(self):
         print(f"Connect: {self.device_product_line}")
@@ -87,7 +92,10 @@ class Detection(Node):
 
     def getDistance(self, lig=240, col=424):
         # résultat en mm
-        return self.depth_image[int(lig)][int(col)]
+        depth = self.depth_image[int(lig)][int(col)]
+        dx, dy, dz = rs.rs2_deproject_pixel_to_point(
+            self.color_intrin, [lig, col], depth)
+        return math.sqrt(((dx)**2) + ((dy)**2) + ((dz)**2)), dy
 
     def checkSizeBouteille(self, depth, rayon):
         ratio = rayon / depth
@@ -95,19 +103,22 @@ class Detection(Node):
 
     def getMeanDistance(self, lig=240, col=424, delta=5):
         # résultat en m
-        sum = 0
+        sum_distance = 0
+        sum_y = 0
         deltaRange = [-delta, 0, delta]
         for dx in deltaRange:
             for dy in deltaRange:
-                sum += self.getDistance(lig+dx, col+dy)
-        return round(sum / 9000, 2)
+                distance, y = self.getDistance(lig+dx, col+dy)
+                sum_distance += distance
+                sum_y += y
+        return round(sum_distance / 9000, 2), round(sum_y / 9000, 2)
 
     def read_imgs(self):
 
         res = self.captureFrame()
         if res == -1:
             return
-        self.color_image, self.depth_image, self.displayed_color_frame = res
+        self.color_image, self.depth_image, self.displayed_color_frame, self.color_intrin = res
         # Dim usually is equal to 480, 848, 3
         # color_colormap_dim = self.color_image.shape
         # depth_colormap_dim = self.depth_image.shape
@@ -151,7 +162,7 @@ class Detection(Node):
         if not (depth_frame and color_frame):
             return -1
 
-        return np.asanyarray(color_frame.get_data()), np.asanyarray(depth_frame.get_data()), np.asanyarray(displayed_color_frame.get_data())
+        return np.asanyarray(color_frame.get_data()), np.asanyarray(depth_frame.get_data()), np.asanyarray(displayed_color_frame.get_data()), color_frame.profile.as_video_stream_profile().intrinsics
 
     def drawCircle(self, image, x, y, rayon):
         cv2.circle(image, (int(x), int(y)),
@@ -170,13 +181,18 @@ class Detection(Node):
 
     def updateDistance(self, lig=240, col=424):
         # résultat de la distance en mètres
-        distance = self.getMeanDistance(lig, col)
+        distance, dy = self.getMeanDistance(lig, col)
         self.distanceSample.append(distance)
+        self.ysample.append(dy)
         if len(self.distanceSample) >= self.sizeDistanceSample:
             self.currentDistance = round(
                 sum(self.distanceSample) / (len(self.distanceSample)), 2)
-            self.publishMessage("bouteille " + str(self.currentDistance))
+            self.currentY = round(
+                sum(self.ysample) / (len(self.ysample)), 2)
+            self.publishMessage(
+                "bouteille " + str(self.currentDistance) + " " + str(self.currentY))
             self.distanceSample = []
+            self.ysample = []
 
     def findObjects(self, image, mask, displayed_image):
         elements = cv2.findContours(mask, cv2.RETR_EXTERNAL,
@@ -186,10 +202,10 @@ class Detection(Node):
             ((x, y), rayon) = cv2.minEnclosingCircle(c)
             if rayon >= 30:
                 self.updateDistance(y, x)
-                if self.checkSizeBouteille(self.currentDistance, rayon):
-                    self.drawCircle(image, x, y, rayon)
-                    self.labelObject(displayed_image, x, y,
-                                     self.currentDistance)
+                # if self.checkSizeBouteille(self.currentDistance, rayon):
+                self.drawCircle(image, x, y, rayon)
+                self.labelObject(displayed_image, x, y,
+                                 self.currentDistance)
             else:
                 self.publishMessage("pas de bouteille")
                 self.bouteilleDansChampsVision = False

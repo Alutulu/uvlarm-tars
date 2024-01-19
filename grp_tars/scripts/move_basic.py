@@ -15,6 +15,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import String
 import math
 from geometry_msgs.msg import PointStamped
+from bouteille import Bouteille
 
 
 # tenir compte du nombre de bouteilles dans le champ de vision pour savoir si il y en a qui sont apparues ou non
@@ -76,6 +77,10 @@ class MoveBasic(Node):
         self.x = 0
         self.y = 0
         self.angle = 0
+
+        # Bouteilles
+        self.bouteilles = []
+        self.margin = 0.2
 
     def euler_from_quaternion(self, x, y, z, w):
         siny_cosp = 2 * (w * z + x * y)
@@ -150,13 +155,16 @@ class MoveBasic(Node):
             self.stopped = False
 
     def publishMarker(self, x, y):
-        self.position = PointStamped()
-        self.position.point.x = x
-        self.position.point.y = y
-        self.position.point.z = 0.0
-        self.position.header.frame_id = 'map'
-        self.position.header.stamp = self.get_clock().now().to_msg()
-        self.pointPublisher.publish(self.position)
+        bouteille = Bouteille('b' + str(len(self.bouteilles)), x, y)
+        if not bouteille.alreadyIn(self.bouteilles, self.margin):
+            self.bouteilles.append(bouteille)
+            self.position = PointStamped()
+            self.position.point.x = x
+            self.position.point.y = y
+            self.position.point.z = 0.0
+            self.position.header.frame_id = 'map'
+            self.position.header.stamp = self.get_clock().now().to_msg()
+            self.pointPublisher.publish(self.position)
 
     def button_callback(self, button_msg):
         if button_msg.state == 1 and not self.stopped:

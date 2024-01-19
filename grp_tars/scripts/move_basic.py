@@ -13,6 +13,7 @@ import time
 import numpy as np
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String
+import math
 
 # tenir compte du nombre de bouteilles dans le champ de vision pour savoir si il y en a qui sont apparues ou non
 
@@ -81,8 +82,8 @@ class MoveBasic(Node):
         return yaw
 
     def coordBouteilleRelative(self, distance):
-        x = distance * self.angle
-        y = distance * self.angle
+        x = distance * math.cos(self.angle)
+        y = distance * math.sin(self.angle)
         return x, y
 
     def coordBouteilleAbsolute(self, distance):
@@ -90,27 +91,33 @@ class MoveBasic(Node):
         return x + self.x, y + self.y
 
     def _initTopics(self, topic_move_name):
-        self.subscription = self.create_subscription(
+        self.scan_subscription = self.create_subscription(
             LaserScan, '/scan',
             self.scan_callback, 50)
-        self.subscription = self.create_subscription(
+        self.detection_subscription = self.create_subscription(
             String, '/detection',
             self.detection_callback, 50)
-        self.subscription = self.create_subscription(
+        self.odom_subscription = self.create_subscription(
             Odometry, '/odom',
             self.odom_callback, 50)
         self.cloud_publisher = self.create_publisher(
             pc2.PointCloud2, 'laser_link', 10)
         self.move1_publisher = self.create_publisher(
             Twist, topic_move_name, 10)
-        self.wheel_drop_publisher = self.create_subscription(
+        self.wheel_drop_subscription = self.create_subscription(
             WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
-        self.wheel_drop_publisher = self.create_subscription(
+        self.wheel_drop_subscriber = self.create_subscription(
             ButtonEvent, '/events/button', self.button_callback, 50)
 
-    def detection_callback(self):
-        # TODO
-        return
+    def detection_callback(self, detect_msg):
+        if len(detect_msg.data.split()) > 1:
+            first_word, second_word = detect_msg.data.split()
+            if first_word == 'bouteille':
+                distance = float(second_word)
+                coord = self.coordBouteilleAbsolute(distance)
+                print(round(coord[0], 1), round(coord[1], 1))
+            else:
+                print(detect_msg.data)
 
     def odom_callback(self, odom_msg):
         msg = odom_msg.pose.pose
@@ -118,8 +125,6 @@ class MoveBasic(Node):
         self.y = msg.position.y
         self.angle = self.euler_from_quaternion(
             msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w)
-        print("x", round(self.x, 2), "y", round(
-            self.y, 2), "angle", round(self.angle, 2))
 
     def wheel_drop_callback(self, wheel_msg):
         rightWheel = wheel_msg.wheel == 1

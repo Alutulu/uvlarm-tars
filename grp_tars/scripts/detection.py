@@ -20,7 +20,6 @@ class Detection(Node):
         self.detect_publisher = self.create_publisher(
             String, '/detection', 10)
         self.colorGreen = 55
-        self.bouteilleDansChampsVision = False
         self.deltaColor = 40
         self.sizeDistanceSample = 10
 
@@ -30,6 +29,9 @@ class Detection(Node):
         self.color_info = (0, 0, 255)
 
         self.hsv_px = [0, 0, 0]
+        self.number_bouteilles = 0
+        self.ratioBouteilleDepth = 115 / 0.3  # mm / meters
+        self.deltaSize = 0.3
 
         # Creating morphological kernel
         self.kernel = np.ones((3, 3), np.uint8)
@@ -87,6 +89,10 @@ class Detection(Node):
         # résultat en mm
         return self.depth_image[int(lig)][int(col)]
 
+    def checkSizeBouteille(self, depth, rayon):
+        ratio = rayon / depth
+        return (1-self.deltaSize) * self.ratioBouteilleDepth <= ratio and ratio <= (1+self.deltaSize) * self.ratioBouteilleDepth and rayon >= 30
+
     def getMeanDistance(self, lig=240, col=424, delta=5):
         # résultat en m
         sum = 0
@@ -103,8 +109,8 @@ class Detection(Node):
             return
         self.color_image, self.depth_image, self.displayed_color_frame = res
         # Dim usually is equal to 480, 848, 3
-        color_colormap_dim = self.color_image.shape
-        depth_colormap_dim = self.depth_image.shape
+        # color_colormap_dim = self.color_image.shape
+        # depth_colormap_dim = self.depth_image.shape
 
         # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
         # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
@@ -169,8 +175,7 @@ class Detection(Node):
         if len(self.distanceSample) >= self.sizeDistanceSample:
             self.currentDistance = round(
                 sum(self.distanceSample) / (len(self.distanceSample)), 2)
-            if not self.bouteilleDansChampsVision:
-                self.publishMessage("bouteille " + self.currentDistance)
+            self.publishMessage("bouteille " + str(self.currentDistance))
             self.distanceSample = []
 
     def findObjects(self, image, mask, displayed_image):
@@ -179,15 +184,14 @@ class Detection(Node):
         if len(elements) > 0:
             c = max(elements, key=cv2.contourArea)
             ((x, y), rayon) = cv2.minEnclosingCircle(c)
-            if rayon > 30:
-                if not self.bouteilleDansChampsVision:
-                    self.bouteilleDansChampsVision = True
+            if rayon >= 30:
                 self.updateDistance(y, x)
-                # self.currentDistance = self.getMeanDistance(y, x)
-                self.drawCircle(image, x, y, rayon)
-                self.labelObject(displayed_image, x, y, self.currentDistance)
-            elif self.bouteilleDansChampsVision:
-                self.publishMessage("disparition bouteille")
+                if self.checkSizeBouteille(self.currentDistance, rayon):
+                    self.drawCircle(image, x, y, rayon)
+                    self.labelObject(displayed_image, x, y,
+                                     self.currentDistance)
+            else:
+                self.publishMessage("pas de bouteille")
                 self.bouteilleDansChampsVision = False
 
     def updateFrequency(self):

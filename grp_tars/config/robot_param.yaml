@@ -1,7 +1,0 @@
-move_simulation_node:
-  ros__parameters:
-    rotation_speed: 0.6
-    forward_speed: 0.25
-    detection_depth: 0.3
-    detection_width: 0.5
-    topic_move_name: "/cmd_vel"

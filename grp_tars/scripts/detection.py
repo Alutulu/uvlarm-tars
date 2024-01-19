@@ -10,6 +10,7 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
 
+
 class Detection(Node):
     def __init__(self, fps=60):
         super().__init__('detection_node')
@@ -57,12 +58,11 @@ class Detection(Node):
 
         self.image_publisher = self.create_publisher(Image, 'image_color', 10)
         self.depth_publisher = self.create_publisher(Image, 'image_depth', 10)
-        
+
         # Start streaming
         self.pipeline.start(self.config)
         align_to = rs.stream.depth
         self.align = rs.align(align_to)
-
 
         self.isOk = True
         self.testi = 0
@@ -70,7 +70,6 @@ class Detection(Node):
         self.distanceSample = []
         self.currentDistance = -1
         # TODO on peut faire un moyenne de la position de la bouteille aussi
-
 
     def checkDevices(self):
         print(f"Connect: {self.device_product_line}")
@@ -87,7 +86,7 @@ class Detection(Node):
     def getDistance(self, lig=240, col=424):
         # résultat en mm
         return self.depth_image[int(lig)][int(col)]
-    
+
     def getMeanDistance(self, lig=240, col=424, delta=5):
         # résultat en m
         sum = 0
@@ -150,27 +149,30 @@ class Detection(Node):
 
     def drawCircle(self, image, x, y, rayon):
         cv2.circle(image, (int(x), int(y)),
-            int(rayon), self.color_info, 2)
-        
+                   int(rayon), self.color_info, 2)
+
     def labelObject(self, image, x, y, distance):
         cv2.circle(image, (int(x), int(y)),
-                    5, self.color_info, 10)
+                   5, self.color_info, 10)
         cv2.line(image, (int(x), int(y)),
-                    (int(x)+150, int(y)), self.color_info, 2)
+                 (int(x)+150, int(y)), self.color_info, 2)
         cv2.putText(image, "Bouteille", (int(x) + int(self.deltaColor/2), int(y) - int(self.deltaColor/2)),
                     cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
         if self.currentDistance > 0:
             cv2.putText(image, str(self.currentDistance) + " m", (int(x)+20, int(y) + 30),
-                    cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
-        
+                        cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
+
     def updateDistance(self, lig=240, col=424):
         # résultat de la distance en mètres
         distance = self.getMeanDistance(lig, col)
         self.distanceSample.append(distance)
         if len(self.distanceSample) >= self.sizeDistanceSample:
-            self.currentDistance = round(sum(self.distanceSample) / (len(self.distanceSample)), 2)
+            self.currentDistance = round(
+                sum(self.distanceSample) / (len(self.distanceSample)), 2)
+            if not self.bouteilleDansChampsVision:
+                self.publishMessage("bouteille " + self.currentDistance)
             self.distanceSample = []
-    
+
     def findObjects(self, image, mask, displayed_image):
         elements = cv2.findContours(mask, cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_SIMPLE)[-2]
@@ -179,16 +181,14 @@ class Detection(Node):
             ((x, y), rayon) = cv2.minEnclosingCircle(c)
             if rayon > 30:
                 if not self.bouteilleDansChampsVision:
-                    self.publishMessage("Bouteille détectée")
                     self.bouteilleDansChampsVision = True
                 self.updateDistance(y, x)
                 # self.currentDistance = self.getMeanDistance(y, x)
                 self.drawCircle(image, x, y, rayon)
                 self.labelObject(displayed_image, x, y, self.currentDistance)
             elif self.bouteilleDansChampsVision:
-                self.publishMessage("Bouteille disparue")
+                self.publishMessage("disparition bouteille")
                 self.bouteilleDansChampsVision = False
-
 
     def updateFrequency(self):
         if self.count == 10:
@@ -224,6 +224,7 @@ class Detection(Node):
         print("\nCtrl-c pressed")
         self.isOk = False
 
+
 def main(args=None):
     print("Node DETECTION started")
     rclpy.init(args=args)
@@ -236,6 +237,7 @@ def main(args=None):
     detectNode.pipeline.stop()
     detectNode.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

@@ -12,6 +12,9 @@ from kobuki_ros_interfaces.msg import WheelDropEvent, ButtonEvent
 import time
 import numpy as np
 from nav_msgs.msg import Odometry
+from std_msgs.msg import String
+
+# tenir compte du nombre de bouteilles dans le champ de vision pour savoir si il y en a qui sont apparues ou non
 
 
 class MoveBasic(Node):
@@ -77,10 +80,22 @@ class MoveBasic(Node):
         yaw = np.arctan2(siny_cosp, cosy_cosp)
         return yaw
 
+    def coordBouteilleRelative(self, distance):
+        x = distance * self.angle
+        y = distance * self.angle
+        return x, y
+
+    def coordBouteilleAbsolute(self, distance):
+        x, y = self.coordBouteilleRelative(distance)
+        return x + self.x, y + self.y
+
     def _initTopics(self, topic_move_name):
         self.subscription = self.create_subscription(
             LaserScan, '/scan',
             self.scan_callback, 50)
+        self.subscription = self.create_subscription(
+            String, '/detection',
+            self.detection_callback, 50)
         self.subscription = self.create_subscription(
             Odometry, '/odom',
             self.odom_callback, 50)
@@ -92,6 +107,10 @@ class MoveBasic(Node):
             WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
         self.wheel_drop_publisher = self.create_subscription(
             ButtonEvent, '/events/button', self.button_callback, 50)
+
+    def detection_callback(self):
+        # TODO
+        return
 
     def odom_callback(self, odom_msg):
         msg = odom_msg.pose.pose

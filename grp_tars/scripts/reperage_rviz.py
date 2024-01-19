@@ -12,8 +12,8 @@ class MoveBasic(Node):
 
 
         self.position=PointStamped()
-        self.position.point.x=0.0
-        self.position.point.y=-0.0
+        self.position.point.x=-3.5620377
+        self.position.point.y=-6.8689
         self.position.point.z=-0.00032126060055376326
         self.position.header.frame_id = 'map'
         self.position.header.stamp = self.get_clock().now().to_msg()

@@ -14,6 +14,8 @@ import numpy as np
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String
 import math
+from geometry_msgs.msg import PointStamped
+
 
 # tenir compte du nombre de bouteilles dans le champ de vision pour savoir si il y en a qui sont apparues ou non
 
@@ -84,7 +86,6 @@ class MoveBasic(Node):
     def coordBouteilleRelative(self, distance, dy):
         x = distance * math.cos(self.angle)
         y = distance * math.sin(self.angle) + dy
-        print(dy)
         return x, y
 
     def coordBouteilleAbsolute(self, distance, dy):
@@ -109,6 +110,8 @@ class MoveBasic(Node):
             WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
         self.wheel_drop_subscriber = self.create_subscription(
             ButtonEvent, '/events/button', self.button_callback, 50)
+        self.pointPublisher = self.create_publisher(
+            PointStamped, '/points_bouteilles', 10)
 
     def detection_callback(self, detect_msg):
         if len(detect_msg.data.split()) == 3:
@@ -116,8 +119,8 @@ class MoveBasic(Node):
             if first_word == 'bouteille':
                 distance = float(second_word)
                 dy = float(third_word) - 0.12  # offset
-                coord = self.coordBouteilleAbsolute(distance, dy)
-                # print(round(coord[0], 1), round(coord[1], 1))
+                x, y = self.coordBouteilleAbsolute(distance, dy)
+                self.publishMarker(x, y)
             else:
                 print(detect_msg.data)
 
@@ -145,6 +148,15 @@ class MoveBasic(Node):
         elif self.robotDown() and self.stopped:
             time.sleep(5)
             self.stopped = False
+
+    def publishMarker(self, x, y):
+        self.position = PointStamped()
+        self.position.point.x = x
+        self.position.point.y = y
+        self.position.point.z = 0.0
+        self.position.header.frame_id = 'map'
+        self.position.header.stamp = self.get_clock().now().to_msg()
+        self.pointPublisher.publish(self.position)
 
     def button_callback(self, button_msg):
         if button_msg.state == 1 and not self.stopped:

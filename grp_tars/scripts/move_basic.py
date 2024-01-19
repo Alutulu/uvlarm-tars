@@ -10,24 +10,34 @@ from geometry_msgs.msg import Twist
 import random
 from kobuki_ros_interfaces.msg import WheelDropEvent, ButtonEvent
 import time
+import numpy as np
+from nav_msgs.msg import Odometry
 
 
 class MoveBasic(Node):
 
-    def __init__(self, node_name):
+    def __init__(self, node_name, default_rotation_speed=0.6, default_forward_speed=0.25, default_detection_depth=0.3, default_detection_width=0.5, default_topic_move_name='/multi/cmd_nav', default_can_move=True):
         super().__init__(node_name)
 
         # Load parameters
-        self.declare_parameter('topic_move_name')
-        topic_move_name = self.get_parameter('topic_move_name').get_parameter_value().string_value
-        self.declare_parameter('rotation_speed')
-        rotation_speed = self.get_parameter('rotation_speed').get_parameter_value().double_value
-        self.declare_parameter('forward_speed')
-        forward_speed = self.get_parameter('forward_speed').get_parameter_value().double_value
-        self.declare_parameter('detection_depth')
-        detection_depth = self.get_parameter('detection_depth').get_parameter_value().double_value
-        self.declare_parameter('detection_width')
-        detection_width = self.get_parameter('detection_width').get_parameter_value().double_value
+        self.declare_parameter('rotation_speed', default_rotation_speed)
+        rotation_speed = self.get_parameter(
+            'rotation_speed').get_parameter_value().double_value
+        self.declare_parameter('forward_speed', default_forward_speed)
+        forward_speed = self.get_parameter(
+            'forward_speed').get_parameter_value().double_value
+        self.declare_parameter('detection_depth', default_detection_depth)
+        detection_depth = self.get_parameter(
+            'detection_depth').get_parameter_value().double_value
+        self.declare_parameter('detection_width', default_detection_width)
+        detection_width = self.get_parameter(
+            'detection_width').get_parameter_value().double_value
+        self.declare_parameter('topic_move_name', default_topic_move_name)
+        topic_move_name = self.get_parameter(
+            'topic_move_name').get_parameter_value().string_value
+        self.declare_parameter('can_move', default_can_move)
+        can_move = self.get_parameter(
+            'can_move').get_parameter_value().bool_value
 
         self._initTopics(topic_move_name)
 
@@ -41,6 +51,7 @@ class MoveBasic(Node):
         self.move_right = self.createMove(0.0, -rotation_speed)
         self.move_forward = self.createMove(forward_speed, 0.0)
         self.move_stop = self.createMove(0.0, 0.0)
+        self.can_move = can_move
 
         # Detection parameters
         self.detection_depth = detection_depth
@@ -55,10 +66,24 @@ class MoveBasic(Node):
         self.rightWheelDroped = False
         self.stopped = False
 
+        # Position
+        self.x = 0
+        self.y = 0
+        self.angle = 0
+
+    def euler_from_quaternion(self, x, y, z, w):
+        siny_cosp = 2 * (w * z + x * y)
+        cosy_cosp = 1 - 2 * (y * y + z * z)
+        yaw = np.arctan2(siny_cosp, cosy_cosp)
+        return yaw
+
     def _initTopics(self, topic_move_name):
         self.subscription = self.create_subscription(
-            LaserScan, 'scan',
+            LaserScan, '/scan',
             self.scan_callback, 50)
+        self.subscription = self.create_subscription(
+            Odometry, '/odom',
+            self.odom_callback, 50)
         self.cloud_publisher = self.create_publisher(
             pc2.PointCloud2, 'laser_link', 10)
         self.move1_publisher = self.create_publisher(
@@ -67,6 +92,15 @@ class MoveBasic(Node):
             WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
         self.wheel_drop_publisher = self.create_subscription(
             ButtonEvent, '/events/button', self.button_callback, 50)
+
+    def odom_callback(self, odom_msg):
+        msg = odom_msg.pose.pose
+        self.x = msg.position.x
+        self.y = msg.position.y
+        self.angle = self.euler_from_quaternion(
+            msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w)
+        print("x", round(self.x, 2), "y", round(
+            self.y, 2), "angle", round(self.angle, 2))
 
     def wheel_drop_callback(self, wheel_msg):
         rightWheel = wheel_msg.wheel == 1
@@ -165,7 +199,8 @@ class MoveBasic(Node):
         self.cloud_publisher.publish(sampleCloud)
         number_obstacles_right, number_obstacles_left = self.getObstacleNumbers(
             sample)
-        self.decideMove(number_obstacles_right, number_obstacles_left)
+        if self.can_move:
+            self.decideMove(number_obstacles_right, number_obstacles_left)
 
     def decideMove(self, number_obstacles_right, number_obstacles_left):
         if not self.stopped:
@@ -189,7 +224,6 @@ class MoveBasic(Node):
     def detectInRectangle(self, dim_x, dim_y, scan=0, pointcloud=any):
         cloud_obstacle = []
         if scan == self.ALL:
-            print("scan all")
             for point in pointcloud:
                 if abs(point[1]) <= dim_y/2 and point[0] < dim_x and point[0] >= 0:
                     cloud_obstacle.append(point)

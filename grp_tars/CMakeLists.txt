@@ -21,11 +21,7 @@ install(DIRECTORY
   rviz
   DESTINATION share/${PROJECT_NAME}/
 )
-# Install Rviz configurations
-install(DIRECTORY
-  config
-  DESTINATION share/${PROJECT_NAME}/
-)
+
 # Install python nodes
 install( PROGRAMS scripts/move_robot.py DESTINATION lib/${PROJECT_NAME})
 install( PROGRAMS scripts/detection.py DESTINATION lib/${PROJECT_NAME})

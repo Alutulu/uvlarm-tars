@@ -91,6 +91,9 @@ class MoveBasic(Node):
     def coordBouteilleRelative(self, distance, dy):
         x = distance * math.cos(self.angle)
         y = distance * math.sin(self.angle) + dy
+        # x = distance * math.cos(self.angle) + dy * math.sin(self.angle)
+        # y = distance * math.sin(self.angle) + dy * math.cos(self.angle)
+        # TODO vérifier quelles lignes marchent le mieux
         return x, y
 
     def coordBouteilleAbsolute(self, distance, dy):

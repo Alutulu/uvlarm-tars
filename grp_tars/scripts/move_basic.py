@@ -99,6 +99,8 @@ class MoveBasic(Node):
         self.bouteilles = []
         self.margin = 0.2
 
+        self.contour_fait=False
+
     def euler_from_quaternion(self, x, y, z, w):
         siny_cosp = 2 * (w * z + x * y)
         cosy_cosp = 1 - 2 * (y * y + z * z)
@@ -124,7 +126,6 @@ class MoveBasic(Node):
         self.map_subscriber = self.create_subscription(
             OccupancyGrid, '/map',
             self.map_callback, 50)
-        self.subscription = self.create_subscription(
         self.detection_subscription = self.create_subscription(
             String, '/detection',
             self.detection_callback, 50)
@@ -137,11 +138,12 @@ class MoveBasic(Node):
             Twist, topic_move_name, 10)
         self.goal_publisher = self.create_publisher(
             PoseStamped, '/goal_pose', 10)
-        self.wheel_drop_publisher = self.create_subscription(
         self.wheel_drop_subscription = self.create_subscription(
             WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
-        self.wheel_drop_subscriber = self.create_subscription(
+        self.button_subscriber = self.create_subscription(
             ButtonEvent, '/events/button', self.button_callback, 50)
+        self.pointPublisher = self.create_publisher(
+            PointStamped, '/points_bouteilles', 10)
 
     def detection_callback(self):
         # TODO
@@ -256,7 +258,8 @@ class MoveBasic(Node):
             self.position.point.z = 0.0
             self.position.header.frame_id = 'map'
             self.position.header.stamp = self.get_clock().now().to_msg()
-            self.pointPublisher.publish(self.position)
+            self.pointPublisher.publish(self.position)   # if self.can_move:
+        #     self.decideMove(number_obstacles_right, number_obstacles_left)
 
     def button_callback(self, button_msg):
         if button_msg.state == 1 and not self.stopped:
@@ -337,8 +340,12 @@ class MoveBasic(Node):
         self.cloud_publisher.publish(sampleCloud)
         number_obstacles_right, number_obstacles_left = self.getObstacleNumbers(
             sample)
-        if self.can_move:
-            self.decideMove(number_obstacles_right, number_obstacles_left)
+        while self.contour_fait==False:
+            k=self.data.find(1)
+            if k==-1:
+                self.decideMove(number_obstacles_right, number_obstacles_left)
+        # if self.can_move:
+        #     self.decideMove(number_obstacles_right, number_obstacles_left)
 
     def decideMove(self, number_obstacles_right, number_obstacles_left):
         if not self.stopped:

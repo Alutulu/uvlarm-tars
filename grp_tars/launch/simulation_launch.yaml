@@ -16,10 +16,5 @@ launch:
           value: 0.5
         - name: "topic_move_name"
           value: "/cmd_vel"
-
-  - node:
-      pkg: "grp_tars"
-      exec: "detection.py"
-      name: "detection_node"
   - executable:
       cmd: gnome-terminal --tab -e 'ros2 launch slam_toolbox offline_launch.py use_sim_time:=False'

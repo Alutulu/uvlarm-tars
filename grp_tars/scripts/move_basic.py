@@ -10,7 +10,10 @@ import sensor_msgs_py.point_cloud2
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import PoseStamped
 import random
-from kobuki_ros_interfaces.msg import WheelDropEvent, ButtonEvent
+try:
+    from kobuki_ros_interfaces.msg import WheelDropEvent, ButtonEvent
+except:
+    pass
 import time
 import numpy as np
 from nav_msgs.msg import Odometry
@@ -139,10 +142,13 @@ class MoveBasic(Node):
             Twist, topic_move_name, 10)
         self.goal_publisher = self.create_publisher(
             PoseStamped, '/goal_pose', 10)
-        self.wheel_drop_subscription = self.create_subscription(
-            WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
-        self.button_subscriber = self.create_subscription(
-            ButtonEvent, '/events/button', self.button_callback, 50)
+        try:
+            self.wheel_drop_subscription = self.create_subscription(
+                WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
+            self.button_subscriber = self.create_subscription(
+                ButtonEvent, '/events/button', self.button_callback, 50)
+        except:
+            pass
         self.pointPublisher = self.create_publisher(
             PointStamped, '/points_bouteilles', 10)
 

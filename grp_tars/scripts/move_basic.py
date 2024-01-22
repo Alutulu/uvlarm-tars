@@ -16,6 +16,10 @@ import numpy as np
 from nav_msgs.msg import Odometry
 import math
 from std_msgs.msg import String
+import math
+from geometry_msgs.msg import PointStamped
+from bouteille import Bouteille
+
 
 # tenir compte du nombre de bouteilles dans le champ de vision pour savoir si il y en a qui sont apparues ou non
 
@@ -85,14 +89,15 @@ class MoveBasic(Node):
         self.resolution=0
 
         #Goal parameter:
-
         self.post_goal=PoseStamped()
         self.post_goal.header.stamp = self.get_clock().now().to_msg()
         self.post_goal.header.frame_id='/map'
         self.post_goal.pose.position.x=0
         self.post_goal.pose.position.y=0
         
-
+        # Bouteilles
+        self.bouteilles = []
+        self.margin = 0.2
 
     def euler_from_quaternion(self, x, y, z, w):
         siny_cosp = 2 * (w * z + x * y)
@@ -100,26 +105,30 @@ class MoveBasic(Node):
         yaw = np.arctan2(siny_cosp, cosy_cosp)
         return yaw
 
-    def coordBouteilleRelative(self, distance):
-        x = distance * self.angle
-        y = distance * self.angle
+    def coordBouteilleRelative(self, distance, dy):
+        x = distance * math.cos(self.angle)
+        y = distance * math.sin(self.angle) + dy
+        # x = distance * math.cos(self.angle) + dy * math.sin(self.angle)
+        # y = distance * math.sin(self.angle) + dy * math.cos(self.angle)
+        # TODO vérifier quelles lignes marchent le mieux
         return x, y
 
-    def coordBouteilleAbsolute(self, distance):
-        x, y = self.coordBouteilleRelative(distance)
+    def coordBouteilleAbsolute(self, distance, dy):
+        x, y = self.coordBouteilleRelative(distance, dy)
         return x + self.x, y + self.y
 
     def _initTopics(self, topic_move_name):
-        self.subscription = self.create_subscription(
+        self.scan_subscription = self.create_subscription(
             LaserScan, '/scan',
             self.scan_callback, 50)
         self.map_subscriber = self.create_subscription(
             OccupancyGrid, '/map',
             self.map_callback, 50)
         self.subscription = self.create_subscription(
+        self.detection_subscription = self.create_subscription(
             String, '/detection',
             self.detection_callback, 50)
-        self.subscription = self.create_subscription(
+        self.odom_subscription = self.create_subscription(
             Odometry, '/odom',
             self.odom_callback, 50)
         self.cloud_publisher = self.create_publisher(
@@ -129,8 +138,9 @@ class MoveBasic(Node):
         self.goal_publisher = self.create_publisher(
             PoseStamped, '/goal_pose', 10)
         self.wheel_drop_publisher = self.create_subscription(
+        self.wheel_drop_subscription = self.create_subscription(
             WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
-        self.wheel_drop_publisher = self.create_subscription(
+        self.wheel_drop_subscriber = self.create_subscription(
             ButtonEvent, '/events/button', self.button_callback, 50)
 
     def detection_callback(self):
@@ -197,9 +207,19 @@ class MoveBasic(Node):
         self.post_goal.pose.position.x=x
         self.post_goal.pose.position.y=y
         self.goal_publisher.publish(self.post_goal)
+        self.pointPublisher = self.create_publisher(
+            PointStamped, '/points_bouteilles', 10)
 
-
-
+    def detection_callback(self, detect_msg):
+        if len(detect_msg.data.split()) == 3:
+            first_word, second_word, third_word = detect_msg.data.split()
+            if first_word == 'bouteille':
+                distance = float(second_word)
+                dy = float(third_word) - 0.12  # offset
+                x, y = self.coordBouteilleAbsolute(distance, dy)
+                self.publishMarker(x, y)
+            else:
+                print(detect_msg.data)
 
     def odom_callback(self, odom_msg):
         msg = odom_msg.pose.pose
@@ -207,8 +227,6 @@ class MoveBasic(Node):
         self.y = msg.position.y
         self.angle = self.euler_from_quaternion(
             msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w)
-        print("x", round(self.x, 2), "y", round(
-            self.y, 2), "angle", round(self.angle, 2))
 
     def wheel_drop_callback(self, wheel_msg):
         rightWheel = wheel_msg.wheel == 1
@@ -227,6 +245,18 @@ class MoveBasic(Node):
         elif self.robotDown() and self.stopped:
             time.sleep(5)
             self.stopped = False
+
+    def publishMarker(self, x, y):
+        bouteille = Bouteille('b' + str(len(self.bouteilles)), x, y)
+        if not bouteille.alreadyIn(self.bouteilles, self.margin):
+            self.bouteilles.append(bouteille)
+            self.position = PointStamped()
+            self.position.point.x = x
+            self.position.point.y = y
+            self.position.point.z = 0.0
+            self.position.header.frame_id = 'map'
+            self.position.header.stamp = self.get_clock().now().to_msg()
+            self.pointPublisher.publish(self.position)
 
     def button_callback(self, button_msg):
         if button_msg.state == 1 and not self.stopped:

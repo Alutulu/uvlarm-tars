@@ -9,7 +9,7 @@ from rclpy.node import Node
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
-from bouteille import Bouteille
+import math
 
 
 class Detection(Node):
@@ -75,6 +75,8 @@ class Detection(Node):
 
         self.currentY = 0
         self.ysample = []
+        # TODO on peut faire un moyenne de la position de la bouteille aussi
+        # TODO regarder dans VISION la deproj (pour obtenir la vraie position de la bouteille selon sa position sur l'écran)
 
     def checkDevices(self):
         print(f"Connect: {self.device_product_line}")
@@ -167,13 +169,16 @@ class Detection(Node):
         cv2.circle(image, (int(x), int(y)),
                    int(rayon), self.color_info, 2)
 
-    def labelObject(self, image, x, y):
+    def labelObject(self, image, x, y, distance):
         cv2.circle(image, (int(x), int(y)),
                    5, self.color_info, 10)
         cv2.line(image, (int(x), int(y)),
                  (int(x)+150, int(y)), self.color_info, 2)
         cv2.putText(image, "Bouteille", (int(x) + int(self.deltaColor/2), int(y) - int(self.deltaColor/2)),
                     cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
+        if self.currentDistance > 0:
+            cv2.putText(image, str(self.currentDistance) + " m", (int(x)+20, int(y) + 30),
+                        cv2.FONT_HERSHEY_DUPLEX, 1, self.color_info, 1, cv2.LINE_AA)
 
     def updateDistance(self, lig=240, col=424):
         # résultat de la distance en mètres
@@ -194,16 +199,15 @@ class Detection(Node):
         elements = cv2.findContours(mask, cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_SIMPLE)[-2]
         if len(elements) > 0:
-            # if len(elements) > 4:
-            #     elements = elements[:4]
-            for circle in elements:
-                ((x, y), rayon) = cv2.minclosingCircle(circle)
-                if rayon >= 30:
-                    self.publishMessage(
-                        "bouteille " + str(self.currentDistance) + " " + str(self.currentY))
+            c = max(elements, key=cv2.contourArea)
+            # for bottle in elements:
+            ((x, y), rayon) = cv2.minEnclosingCircle(c)
+            if rayon >= 30:
+                self.updateDistance(y, x)
                 # if self.checkSizeBouteille(self.currentDistance, rayon):
                 self.drawCircle(image, x, y, rayon)
-                self.labelObject(displayed_image, x, y)
+                self.labelObject(displayed_image, x, y,
+                                 self.currentDistance)
             else:
                 self.publishMessage("pas de bouteille")
                 self.bouteilleDansChampsVision = False

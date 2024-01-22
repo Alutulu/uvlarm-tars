@@ -95,7 +95,8 @@ class Detection(Node):
         depth = self.depth_image[int(lig)][int(col)]
         dx, dy, dz = rs.rs2_deproject_pixel_to_point(
             self.color_intrin, [lig, col], depth)
-        return math.sqrt(((dx)**2) + ((dy)**2) + ((dz)**2)), dy
+        print(dz, dy)
+        return dz, dy - dz/2
 
     def checkSizeBouteille(self, depth, rayon):
         ratio = rayon / depth
@@ -199,6 +200,7 @@ class Detection(Node):
                                     cv2.CHAIN_APPROX_SIMPLE)[-2]
         if len(elements) > 0:
             c = max(elements, key=cv2.contourArea)
+            # for bottle in elements:
             ((x, y), rayon) = cv2.minEnclosingCircle(c)
             if rayon >= 30:
                 self.updateDistance(y, x)

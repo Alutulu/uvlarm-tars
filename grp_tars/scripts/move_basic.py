@@ -3,15 +3,18 @@ import rclpy
 from rclpy.node import Node
 import math
 from sensor_msgs.msg import LaserScan
+from nav_msgs.msg import OccupancyGrid
 from std_msgs.msg import Header
 import sensor_msgs.msg._point_cloud2 as pc2
 import sensor_msgs_py.point_cloud2
 from geometry_msgs.msg import Twist
+from geometry_msgs.msg import PoseStamped
 import random
 from kobuki_ros_interfaces.msg import WheelDropEvent, ButtonEvent
 import time
 import numpy as np
 from nav_msgs.msg import Odometry
+import math
 from std_msgs.msg import String
 import math
 from geometry_msgs.msg import PointStamped
@@ -78,6 +81,20 @@ class MoveBasic(Node):
         self.y = 0
         self.angle = 0
 
+        #origine du SLAM par rapport à la MAP
+        self.x_origine= 0
+        self.y_origine=0
+        self.width=0
+        self.height=0
+        self.resolution=0
+
+        #Goal parameter:
+        self.post_goal=PoseStamped()
+        self.post_goal.header.stamp = self.get_clock().now().to_msg()
+        self.post_goal.header.frame_id='/map'
+        self.post_goal.pose.position.x=0
+        self.post_goal.pose.position.y=0
+        
         # Bouteilles
         self.bouteilles = []
         self.margin = 0.2
@@ -104,6 +121,10 @@ class MoveBasic(Node):
         self.scan_subscription = self.create_subscription(
             LaserScan, '/scan',
             self.scan_callback, 50)
+        self.map_subscriber = self.create_subscription(
+            OccupancyGrid, '/map',
+            self.map_callback, 50)
+        self.subscription = self.create_subscription(
         self.detection_subscription = self.create_subscription(
             String, '/detection',
             self.detection_callback, 50)
@@ -114,10 +135,78 @@ class MoveBasic(Node):
             pc2.PointCloud2, 'laser_link', 10)
         self.move1_publisher = self.create_publisher(
             Twist, topic_move_name, 10)
+        self.goal_publisher = self.create_publisher(
+            PoseStamped, '/goal_pose', 10)
+        self.wheel_drop_publisher = self.create_subscription(
         self.wheel_drop_subscription = self.create_subscription(
             WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
         self.wheel_drop_subscriber = self.create_subscription(
             ButtonEvent, '/events/button', self.button_callback, 50)
+
+    def detection_callback(self):
+        # TODO
+        return
+    
+
+    def map_callback(self,grid_msg):
+        self.x_origine=grid_msg.info.origin.position.x
+        self.y_origine=grid_msg.info.origin.position.y
+        self.width=grid_msg.info.width
+        self.height=grid_msg.info.height
+        self.resolution=grid_msg.info.resolution
+        self.data=grid_msg.data
+
+    def coordonee_pixel(self,rang):
+        x=rang%self.width
+        y=rang//self.height
+        x_pixel=x*self.resolution+self.x_origine
+        y_pixel=y*self.resolution+self.y_origine
+        return x_pixel,y_pixel
+
+    def orienter_vers_angle_deg(self,angle_deg,orientation=0):
+        if orientation==0:
+            self.move1_publisher.publish(self.move_left)
+        else:
+            self.move1_publisher.publish(self.move_right)
+        angle_rad=angle_deg*2*math.pi/360
+        if angle_deg>179.98 or angle_deg < -179.98:
+            while (self.angle>179.98 ):
+                continue
+        else:
+            while (self.angle>=angle_rad-0.01 and self.angle<=angle_rad+0.01 ):
+                continue
+        self.move1_publisher.publish(self.move_stop)
+
+    
+
+
+
+    
+
+        
+
+
+
+    def verification_bord_arene(self, aire_obstacle):
+        k=0
+        interieur=0
+        exterieur=0
+        for i in self.data:
+            if i[0] ==0:
+                x_verif,y_verif= self.coordonee_pixel(k)
+                if x_verif>=aire_obstacle[0] and x_verif<=aire_obstacle[1] and y_verif>=aire_obstacle[2] and y_verif>=aire_obstacle[3]:
+                    interieur+=1
+                else:
+                    exterieur+=1
+        if interieur>exterieur:
+            return True
+        else:
+            return False
+
+    def goal_pose(self,x,y):
+        self.post_goal.pose.position.x=x
+        self.post_goal.pose.position.y=y
+        self.goal_publisher.publish(self.post_goal)
         self.pointPublisher = self.create_publisher(
             PointStamped, '/points_bouteilles', 10)
 

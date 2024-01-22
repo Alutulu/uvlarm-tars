@@ -58,6 +58,8 @@ class MoveBasic(Node):
 
         # Basic moves
         self.move_left = self.createMove(0.0, rotation_speed)
+        self.move_turn = self.createMove(0.0, math.pi/1.5)
+
         self.move_right = self.createMove(0.0, -rotation_speed)
         self.move_forward = self.createMove(forward_speed, 0.0)
         self.move_stop = self.createMove(0.0, 0.0)
@@ -189,6 +191,12 @@ class MoveBasic(Node):
         else:
             return False
 
+    def t360(self):
+
+        self.move1_publisher.publish(self.move_turn)
+        time.sleep(3)
+        self.move1_publisher.publish(self.move_stop)
+
     def goal_pose(self, x, y):
         self.post_goal.pose.position.x = x
         self.post_goal.pose.position.y = y
@@ -201,11 +209,35 @@ class MoveBasic(Node):
             first_word, second_word, third_word = detect_msg.data.split()
             if first_word == 'bouteille':
                 distance = float(second_word)
-                dy = float(third_word)  # offset
+                dy = float(third_word)
                 x, y = self.coordBouteilleAbsolute(distance, dy)
-                self.publishMarker(x, y)
+                bouteille = Bouteille(x, y)
+                if not bouteille.alreadyIn(self.bouteilles):
+                    self.stopMove()
+                    self.bouteilles.append(bouteille)
+                else:
+                    for bottle in self.bouteilles:
+                        if bouteille.sameAs(bottle):
+                            if not bottle.placed:
+                                xbouteille, ybouteille = bouteille.getPosition()
+                                bottle.addtoSample(xbouteille, ybouteille)
+                            break
             else:
                 print(detect_msg.data)
+
+        self.placeBottles()
+        self.markBottles()
+
+    def markBottles(self):
+        for bouteille in self.bouteilles:
+            if bouteille.needToBeMarked:
+                self.publishMarker(bouteille.x, bouteille.y)
+                bouteille.needToBePlaced = False
+
+    def placeBottles(self):
+        for bouteille in self.bouteilles:
+            if bouteille.numberSeen() >= 10:
+                bouteille.placeBottle()
 
     def odom_callback(self, odom_msg):
         msg = odom_msg.pose.pose
@@ -332,23 +364,27 @@ class MoveBasic(Node):
             self.decideMove(number_obstacles_right, number_obstacles_left)
 
     def decideMove(self, number_obstacles_right, number_obstacles_left):
-        if not self.stopped:
-            # si bloqué dans un coin
-            if self.isBloque(number_obstacles_right, number_obstacles_left):
-                self.rotateLeft()
-            elif number_obstacles_right > 0:
-                self.rotateLeft()
-            elif number_obstacles_left > 0:
-                self.rotateRight()
-            # 2 fois sur 3 avant de commencer à avancer
-            elif (not self.isGoingForward) and self.un_sur_trois != 0:
-                self.setForwardCurved()
-            # 1 fois sur 3 avant de commencer à avancer
-            elif not self.isGoingForward:
-                self.setForwardStraight()
-            # si peut avancer
-            else:
-                self.moveForward()
+        k = random.randint(10000)
+        if k == 1:
+            self.t360()
+        else:
+            if not self.stopped:
+                # si bloqué dans un coin
+                if self.isBloque(number_obstacles_right, number_obstacles_left):
+                    self.rotateLeft()
+                elif number_obstacles_right > 0:
+                    self.rotateLeft()
+                elif number_obstacles_left > 0:
+                    self.rotateRight()
+                # 2 fois sur 3 avant de commencer à avancer
+                elif (not self.isGoingForward) and self.un_sur_trois != 0:
+                    self.setForwardCurved()
+                # 1 fois sur 3 avant de commencer à avancer
+                elif not self.isGoingForward:
+                    self.setForwardStraight()
+                # si peut avancer
+                else:
+                    self.moveForward()
 
     def detectInRectangle(self, dim_x, dim_y, scan=0, pointcloud=any):
         cloud_obstacle = []

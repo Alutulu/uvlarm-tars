@@ -228,13 +228,13 @@ class Detection(Node):
     def publish_imgs(self):
 
         timestamp = self.get_clock().now().to_msg()
-        self.publish_img(self.color_image, "image", timestamp)
+        self.publish_img(self.displayed_color_frame, "image_color", timestamp)
 
         # Utilisation de colormap sur l'image depth de la Realsense (image convertie en 8-bit par pixel)
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
-            self.depth_image, alpha=0.2), cv2.COLORMAP_JET)
+        # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
+        #     self.depth_image, alpha=0.2), cv2.COLORMAP_JET)
 
-        self.publish_img(depth_colormap, "depth", timestamp)
+        # self.publish_img(depth_colormap, "depth", timestamp)
 
     def publish_img(self, image, frame_id, timestamp):
         msg_image = self.bridge.cv2_to_imgmsg(image, "bgr8")

@@ -97,7 +97,7 @@ class MoveBasic(Node):
 
         # Bouteilles
         self.bouteilles = []
-        self.margin = 0.1
+        self.margin = 0.15
 
         self.contour_fait = False
 

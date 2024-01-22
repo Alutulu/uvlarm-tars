@@ -27,4 +27,4 @@ launch:
       namespace: "rviz_1"
       args: " -d $(find-pkg-share grp_tars)/rviz/conf_rviz.rviz"
   - executable:
-      cmd: xterm -e 'ros2 launch slam_toolbox online_sync_launch.py use_sim_time:=False'
+      cmd: gnome-terminal --tab -e 'ros2 launch slam_toolbox online_sync_launch.py use_sim_time:=False'

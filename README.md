@@ -32,9 +32,7 @@ Le launch file `launch_sim.yaml` permet de lancer le noeud ROS `reactive_move.py
 
 ## Package Tuto_vision
 
-
-
-Ce package ROS 
+Ce package comporte une première version du script servant à détcter la présence de bouteille. Il a été utile pour tester les différentes fonctionnalités liées à la caméra et au traitement d'images.
 
 ## Astuces
 

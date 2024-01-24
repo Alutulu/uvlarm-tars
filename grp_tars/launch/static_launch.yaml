@@ -3,8 +3,8 @@ launch:
       file: "$(find-pkg-share tbot_node)/launch/minimal_launch.yaml"
   - node:
       pkg: "grp_tars"
-      exec: "move_robot.py"
-      name: "move_robot_node"
+      exec: "static_robot.py"
+      name: "static_robot_node"
       param:
         - name: "rotation_speed"
           value: 0.6

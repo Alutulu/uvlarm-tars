@@ -10,7 +10,10 @@ import sensor_msgs_py.point_cloud2
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import PoseStamped
 import random
-from kobuki_ros_interfaces.msg import WheelDropEvent, ButtonEvent
+try:
+    from kobuki_ros_interfaces.msg import WheelDropEvent, ButtonEvent
+except:
+    pass
 import time
 import numpy as np
 from nav_msgs.msg import Odometry
@@ -58,6 +61,8 @@ class MoveBasic(Node):
 
         # Basic moves
         self.move_left = self.createMove(0.0, rotation_speed)
+        self.move_turn = self.createMove(0.0, 0.4)
+
         self.move_right = self.createMove(0.0, -rotation_speed)
         self.move_forward = self.createMove(forward_speed, 0.0)
         self.move_stop = self.createMove(0.0, 0.0)
@@ -81,25 +86,25 @@ class MoveBasic(Node):
         self.y = 0
         self.angle = 0
 
-        #origine du SLAM par rapport à la MAP
-        self.x_origine= 0
-        self.y_origine=0
-        self.width=0
-        self.height=0
-        self.resolution=0
+        # origine du SLAM par rapport à la MAP
+        self.x_origine = 0
+        self.y_origine = 0
+        self.width = 0
+        self.height = 0
+        self.resolution = 0
 
-        #Goal parameter:
-        self.post_goal=PoseStamped()
+        # Goal parameter:
+        self.post_goal = PoseStamped()
         self.post_goal.header.stamp = self.get_clock().now().to_msg()
-        self.post_goal.header.frame_id='/map'
-        self.post_goal.pose.position.x=0
-        self.post_goal.pose.position.y=0
-        
+        self.post_goal.header.frame_id = '/map'
+        self.post_goal.pose.position.x = 0
+        self.post_goal.pose.position.y = 0
+
         # Bouteilles
         self.bouteilles = []
-        self.margin = 0.2
+        self.margin = 0.6
 
-        self.contour_fait=False
+        self.contour_fait = False
 
     def euler_from_quaternion(self, x, y, z, w):
         siny_cosp = 2 * (w * z + x * y)
@@ -108,11 +113,8 @@ class MoveBasic(Node):
         return yaw
 
     def coordBouteilleRelative(self, distance, dy):
-        x = distance * math.cos(self.angle)
-        y = distance * math.sin(self.angle) + dy
-        # x = distance * math.cos(self.angle) + dy * math.sin(self.angle)
-        # y = distance * math.sin(self.angle) + dy * math.cos(self.angle)
-        # TODO vérifier quelles lignes marchent le mieux
+        x = distance * math.cos(self.angle) + dy * math.sin(self.angle)
+        y = distance * math.sin(self.angle) + dy * math.cos(self.angle)
         return x, y
 
     def coordBouteilleAbsolute(self, distance, dy):
@@ -138,76 +140,76 @@ class MoveBasic(Node):
             Twist, topic_move_name, 10)
         self.goal_publisher = self.create_publisher(
             PoseStamped, '/goal_pose', 10)
-        self.wheel_drop_subscription = self.create_subscription(
-            WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
-        self.button_subscriber = self.create_subscription(
-            ButtonEvent, '/events/button', self.button_callback, 50)
+        try:
+            self.wheel_drop_subscription = self.create_subscription(
+                WheelDropEvent, '/events/wheel_drop', self.wheel_drop_callback, 50)
+            self.button_subscriber = self.create_subscription(
+                ButtonEvent, '/events/button', self.button_callback, 50)
+        except:
+            pass
         self.pointPublisher = self.create_publisher(
             PointStamped, '/points_bouteilles', 10)
 
-    def detection_callback(self):
-        # TODO
-        return
-    
+    def map_callback(self, grid_msg):
+        self.x_origine = grid_msg.info.origin.position.x
+        self.y_origine = grid_msg.info.origin.position.y
+        self.width = grid_msg.info.width
+        self.height = grid_msg.info.height
+        self.resolution = grid_msg.info.resolution
+        self.data = grid_msg.data
 
-    def map_callback(self,grid_msg):
-        self.x_origine=grid_msg.info.origin.position.x
-        self.y_origine=grid_msg.info.origin.position.y
-        self.width=grid_msg.info.width
-        self.height=grid_msg.info.height
-        self.resolution=grid_msg.info.resolution
-        self.data=grid_msg.data
+    def coordonee_pixel(self, rang):
+        x = rang % self.width
+        y = rang//self.height
+        x_pixel = x*self.resolution+self.x_origine
+        y_pixel = y*self.resolution+self.y_origine
+        return x_pixel, y_pixel
 
-    def coordonee_pixel(self,rang):
-        x=rang%self.width
-        y=rang//self.height
-        x_pixel=x*self.resolution+self.x_origine
-        y_pixel=y*self.resolution+self.y_origine
-        return x_pixel,y_pixel
-
-    def orienter_vers_angle_deg(self,angle_deg,orientation=0):
-        if orientation==0:
+    def orienter_vers_angle_deg(self, angle_deg, orientation=0):
+        if orientation == 0:
             self.move1_publisher.publish(self.move_left)
         else:
             self.move1_publisher.publish(self.move_right)
-        angle_rad=angle_deg*2*math.pi/360
-        if angle_deg>179.98 or angle_deg < -179.98:
-            while (self.angle>179.98 ):
+        angle_rad = angle_deg*2*math.pi/360
+        if angle_deg > 179.98 or angle_deg < -179.98:
+            while (self.angle > 179.98):
                 continue
         else:
-            while (self.angle>=angle_rad-0.01 and self.angle<=angle_rad+0.01 ):
+            while (self.angle >= angle_rad-0.01 and self.angle <= angle_rad+0.01):
                 continue
         self.move1_publisher.publish(self.move_stop)
 
-    
-
-
-
-    
-
-        
-
-
-
     def verification_bord_arene(self, aire_obstacle):
-        k=0
-        interieur=0
-        exterieur=0
+        k = 0
+        interieur = 0
+        exterieur = 0
         for i in self.data:
-            if i[0] ==0:
-                x_verif,y_verif= self.coordonee_pixel(k)
-                if x_verif>=aire_obstacle[0] and x_verif<=aire_obstacle[1] and y_verif>=aire_obstacle[2] and y_verif>=aire_obstacle[3]:
-                    interieur+=1
+            if i[0] == 0:
+                x_verif, y_verif = self.coordonee_pixel(k)
+                if x_verif >= aire_obstacle[0] and x_verif <= aire_obstacle[1] and y_verif >= aire_obstacle[2] and y_verif >= aire_obstacle[3]:
+                    interieur += 1
                 else:
-                    exterieur+=1
-        if interieur>exterieur:
+                    exterieur += 1
+        if interieur > exterieur:
             return True
         else:
             return False
 
-    def goal_pose(self,x,y):
-        self.post_goal.pose.position.x=x
-        self.post_goal.pose.position.y=y
+    def t360(self):
+
+        self.move1_publisher.publish(self.move_turn)
+        time.sleep(0.1)
+        self.move1_publisher.publish(self.move_turn)
+        time.sleep(0.1)
+        self.move1_publisher.publish(self.move_turn)
+        time.sleep(0.1)
+        self.move1_publisher.publish(self.move_turn)
+        time.sleep(0.1)
+        self.move1_publisher.publish(self.move_forward)
+
+    def goal_pose(self, x, y):
+        self.post_goal.pose.position.x = x
+        self.post_goal.pose.position.y = y
         self.goal_publisher.publish(self.post_goal)
         self.pointPublisher = self.create_publisher(
             PointStamped, '/points_bouteilles', 10)
@@ -217,9 +219,10 @@ class MoveBasic(Node):
             first_word, second_word, third_word = detect_msg.data.split()
             if first_word == 'bouteille':
                 distance = float(second_word)
-                dy = float(third_word) - 0.12  # offset
+                dy = float(third_word)  # offset
                 x, y = self.coordBouteilleAbsolute(distance, dy)
                 self.publishMarker(x, y)
+                print(x, y)
             else:
                 print(detect_msg.data)
 
@@ -258,8 +261,7 @@ class MoveBasic(Node):
             self.position.point.z = 0.0
             self.position.header.frame_id = 'map'
             self.position.header.stamp = self.get_clock().now().to_msg()
-            self.pointPublisher.publish(self.position)   # if self.can_move:
-        #     self.decideMove(number_obstacles_right, number_obstacles_left)
+            self.pointPublisher.publish(self.position)
 
     def button_callback(self, button_msg):
         if button_msg.state == 1 and not self.stopped:
@@ -340,31 +342,31 @@ class MoveBasic(Node):
         self.cloud_publisher.publish(sampleCloud)
         number_obstacles_right, number_obstacles_left = self.getObstacleNumbers(
             sample)
-        while self.contour_fait==False:
-            k=self.data.find(1)
-            if k==-1:
-                self.decideMove(number_obstacles_right, number_obstacles_left)
-        # if self.can_move:
-        #     self.decideMove(number_obstacles_right, number_obstacles_left)
+        if self.can_move:
+            self.decideMove(number_obstacles_right, number_obstacles_left)
 
     def decideMove(self, number_obstacles_right, number_obstacles_left):
-        if not self.stopped:
-            # si bloqué dans un coin
-            if self.isBloque(number_obstacles_right, number_obstacles_left):
-                self.rotateLeft()
-            elif number_obstacles_right > 0:
-                self.rotateLeft()
-            elif number_obstacles_left > 0:
-                self.rotateRight()
-            # 2 fois sur 3 avant de commencer à avancer
-            elif (not self.isGoingForward) and self.un_sur_trois != 0:
-                self.setForwardCurved()
-            # 1 fois sur 3 avant de commencer à avancer
-            elif not self.isGoingForward:
-                self.setForwardStraight()
-            # si peut avancer
-            else:
-                self.moveForward()
+        k = random.randint(0, 80)
+        if k == 1:
+            self.t360()
+        else:
+            if not self.stopped:
+                # si bloqué dans un coin
+                if self.isBloque(number_obstacles_right, number_obstacles_left):
+                    self.rotateLeft()
+                elif number_obstacles_right > 0:
+                    self.rotateLeft()
+                elif number_obstacles_left > 0:
+                    self.rotateRight()
+                # 2 fois sur 3 avant de commencer à avancer
+                elif (not self.isGoingForward) and self.un_sur_trois != 0:
+                    self.setForwardStraight()
+                # 1 fois sur 3 avant de commencer à avancer
+                elif not self.isGoingForward:
+                    self.setForwardStraight()
+                # si peut avancer
+                else:
+                    self.moveForward()
 
     def detectInRectangle(self, dim_x, dim_y, scan=0, pointcloud=any):
         cloud_obstacle = []
@@ -372,7 +374,6 @@ class MoveBasic(Node):
             for point in pointcloud:
                 if abs(point[1]) <= dim_y/2 and point[0] < dim_x and point[0] >= 0:
                     cloud_obstacle.append(point)
-                    print("obstacle trouvé")
             return cloud_obstacle
         elif scan == self.LEFT:
             for point in pointcloud:

@@ -1,10 +1,6 @@
 launch:
-    
-- include:
-    file: "$(find-pkg-share tbot_sim)/launch/challenge-1.launch.py"
+    - include:
+          file: "$(find-pkg-share tbot_sim)/launch/challenge-1.launch.py"
 
-- executable:
-    cmd: xterm -e 'python3 $HOME/ros_ws/uvlarm-tars/tuto_poo/scripts/reactive_move_sim.py'
-
-# - executable:
-#     cmd: xterm -e 'python3 $HOME/ros_ws/uvlarm-tars/tuto_poo/scripts/reactive_move.py'
+    - executable:
+          cmd: xterm -e 'python3 $HOME/ros_ws/uvlarm-tars/tuto_poo/scripts/reactive_move.py'

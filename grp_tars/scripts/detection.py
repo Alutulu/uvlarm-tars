@@ -34,10 +34,8 @@ class Detection(Node):
         self.ratioBouteilleDepth = 115 / 0.3  # mm / meters
         self.deltaSize = 0.3
 
-        # Creating morphological kernel
         self.kernel = np.ones((3, 3), np.uint8)
 
-        # Get device product line for setting a supporting resolution
         self.pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
         self.pipeline_profile = self.config.resolve(self.pipeline_wrapper)
         self.device = self.pipeline_profile.get_device()
@@ -46,7 +44,6 @@ class Detection(Node):
 
         self.checkDevices()
 
-        # init stream caméra avec le format
         self.config.enable_stream(
             rs.stream.color, 848, 480, rs.format.bgr8, 60)
         self.config.enable_stream(rs.stream.depth, 848, 480, rs.format.z16, 60)
@@ -75,8 +72,6 @@ class Detection(Node):
 
         self.currentY = 0
         self.ysample = []
-        # TODO on peut faire un moyenne de la position de la bouteille aussi
-        # TODO regarder dans VISION la deproj (pour obtenir la vraie position de la bouteille selon sa position sur l'écran)
 
     def checkDevices(self):
         print(f"Connect: {self.device_product_line}")
@@ -99,6 +94,7 @@ class Detection(Node):
         return dz, dy - dz/2
 
     def checkSizeBouteille(self, depth, rayon):
+        # Cette fonction n'a finalement pas été exploitée
         ratio = rayon / depth
         return (1-self.deltaSize) * self.ratioBouteilleDepth <= ratio and ratio <= (1+self.deltaSize) * self.ratioBouteilleDepth and rayon >= 30
 
@@ -120,13 +116,6 @@ class Detection(Node):
         if res == -1:
             return
         self.color_image, self.depth_image, self.displayed_color_frame, self.color_intrin = res
-        # Dim usually is equal to 480, 848, 3
-        # color_colormap_dim = self.color_image.shape
-        # depth_colormap_dim = self.depth_image.shape
-
-        # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
-        # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
-        #     self.depth_image, alpha=0.15), cv2.COLORMAP_JET)
 
         self.image = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(self.image, self.lo, self.hi)
@@ -154,7 +143,6 @@ class Detection(Node):
         self.updateFrequency()
 
     def captureFrame(self):
-        # Wait for a coherent tuple of frames: depth, color and accel
         frames = self.pipeline.wait_for_frames()
         aligned_frames = self.align.process(frames)
         depth_frame = aligned_frames.get_depth_frame()
@@ -200,11 +188,9 @@ class Detection(Node):
                                     cv2.CHAIN_APPROX_SIMPLE)[-2]
         if len(elements) > 0:
             c = max(elements, key=cv2.contourArea)
-            # for bottle in elements:
             ((x, y), rayon) = cv2.minEnclosingCircle(c)
             if rayon >= 30:
                 self.updateDistance(y, x)
-                # if self.checkSizeBouteille(self.currentDistance, rayon):
                 self.drawCircle(image, x, y, rayon)
                 self.labelObject(displayed_image, x, y,
                                  self.currentDistance)
@@ -229,12 +215,6 @@ class Detection(Node):
 
         timestamp = self.get_clock().now().to_msg()
         self.publish_img(self.displayed_color_frame, "image_color", timestamp)
-
-        # Utilisation de colormap sur l'image depth de la Realsense (image convertie en 8-bit par pixel)
-        # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
-        #     self.depth_image, alpha=0.2), cv2.COLORMAP_JET)
-
-        # self.publish_img(depth_colormap, "depth", timestamp)
 
     def publish_img(self, image, frame_id, timestamp):
         msg_image = self.bridge.cv2_to_imgmsg(image, "bgr8")

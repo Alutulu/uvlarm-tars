@@ -113,8 +113,6 @@ class MoveBasic(Node):
         return yaw
 
     def coordBouteilleRelative(self, distance, dy):
-        # x = distance * math.cos(self.angle)
-        # y = distance * math.sin(self.angle) + dy
         x = distance * math.cos(self.angle) + dy * math.sin(self.angle)
         y = distance * math.sin(self.angle) + dy * math.cos(self.angle)
         return x, y
@@ -263,8 +261,7 @@ class MoveBasic(Node):
             self.position.point.z = 0.0
             self.position.header.frame_id = 'map'
             self.position.header.stamp = self.get_clock().now().to_msg()
-            self.pointPublisher.publish(self.position)   # if self.can_move:
-        #     self.decideMove(number_obstacles_right, number_obstacles_left)
+            self.pointPublisher.publish(self.position)
 
     def button_callback(self, button_msg):
         if button_msg.state == 1 and not self.stopped:
@@ -345,10 +342,6 @@ class MoveBasic(Node):
         self.cloud_publisher.publish(sampleCloud)
         number_obstacles_right, number_obstacles_left = self.getObstacleNumbers(
             sample)
-        # while self.contour_fait == False:
-        #     k = self.data.find(1)
-        #     if k == -1:
-        #         self.decideMove(number_obstacles_right, number_obstacles_left)
         if self.can_move:
             self.decideMove(number_obstacles_right, number_obstacles_left)
 

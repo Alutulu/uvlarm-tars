@@ -93,33 +93,130 @@ class MoveBasic(Node):
         self.height = 0
         self.resolution = 0
 
-        # Goal parameter:
-        self.post_goal = PoseStamped()
-        self.post_goal.header.stamp = self.get_clock().now().to_msg()
-        self.post_goal.header.frame_id = '/map'
-        self.post_goal.pose.position.x = 0
-        self.post_goal.pose.position.y = 0
+    def distance(self,x1,y1,x2,y2):
+        return math.sqrt((x1-x2)**2+(y1-y2)**2)
+    
+    def goal(self,x_goal,y_goal):
+        self.se_tourner_vers_point(x_goal,y_goal)
+        while self.distance(self.x,self.y,x_goal,y_goal)>0.05:
+            self.move_forward
+            sample,sample_cloud=self._getSampleCloud()
+            
+            
+        self.move_stop
 
-        # Bouteilles
-        self.bouteilles = []
-        self.margin = 0.6
 
-        self.contour_fait = False
+
+
+
+    def orientation_rotation_angle(self,angle,sens=0):
+        angle_actuelle=self.angle*360/(2*math.pi)
+        if sens==0:#sens horaire
+            calcul_angle=angle_actuelle+angle
+            if calcul_angle>=180:
+                return (calcul_angle-360)*2*math.pi/360
+            else:
+                return calcul_angle*2*math.pi/360
+        else:
+            calcul_angle=angle_actuelle-angle
+            if calcul_angle<=-180:
+                return (calcul_angle+360)*2*math.pi/360
+            else:
+                return calcul_angle*2*math.pi/360
+            
+
+
+            
+    def se_tourner_vers_point(self,x_objectif,y_objectif):
+
+        self.move_stop
+        if self.x==x_objectif and self.y==y_objectif:
+            print("déjà arrivé")
+            return
+        coefficient=self.y/self.x
+        angle_repere_depart=math.atan(abs(self.y)/abs(self.x))
+        angle_repere_objectif=math.atan(abs(y_objectif)/abs(x_objectif))
+        theta1=90-angle_repere_depart
+        theta2=math.atan(abs(self.x-x_objectif)/abs(self.y-y_objectif))
+        XP=self.x>0
+        YP=self.y>0
+        HAUT=self.y<y_objectif
+        DROITE=self.x<x_objectif
+
+        if self.y==y_objectif and DROITE:
+            self.orienter_vers_angle(0)
+            return
+        elif self.y==y_objectif and not DROITE:
+            self.orienter_vers_angle(math.pi)
+            return
+        elif self.x==x_objectif and HAUT:
+            self.orienter_vers_angle(math.pi/2)
+            return
+        elif self.x==x_objectif and not HAUT:
+            self.orienter_vers_angle(-math.pi/2)
+            return
+
+
+        elif (XP and YP and not HAUT and DROITE) or (not XP and not YP and HAUT and not DROITE):
+            thetaf=180-theta1-theta2
+            rotation=0
+        elif (not XP and YP and not HAUT and not DROITE) or (XP and not YP and HAUT and DROITE):
+            thetaf=180-theta1-theta2
+            rotation=1
+
+
+        elif (XP and YP and HAUT and DROITE) or (XP and not YP and not HAUT and DROITE):
+            thetaf=abs(theta1-theta2)
+            if y_objectif>coefficient*x_objectif:
+                rotation=1
+            else:
+                rotation=0
+        elif (not XP and YP and HAUT and not DROITE) or (not XP and not YP and not HAUT and not DROITE):
+            thetaf=abs(theta1-theta2)
+            if y_objectif>coefficient*x_objectif:
+                rotation=0
+            else:
+                rotation=1
+
+
+        elif (XP and YP and HAUT and not DROITE) or (not XP and not YP and not HAUT and DROITE):
+            thetaf=theta1+theta2
+            rotation=1
+        elif (not XP and YP and HAUT and  DROITE) or ( XP and not YP and not HAUT and not DROITE):
+            thetaf=theta1+theta2
+            rotation=0
+
+
+        elif (XP and YP and not HAUT and not DROITE) or ( XP and not YP and HAUT and not DROITE):
+            thetaf=180-abs(theta1-theta2)
+            if y_objectif>coefficient*x_objectif:
+                rotation=1
+            else:
+                rotation=0
+        elif (not XP and YP and not HAUT and  DROITE) or ( not XP and not YP and HAUT and  DROITE):
+            thetaf=180-abs(theta1-theta2)
+            if y_objectif>coefficient*x_objectif:
+                rotation=0
+            else:
+                rotation=1
+        
+
+        self.orientation_rotation_angle(thetaf,rotation)
+        return
+        
+
+
+
+
+
+
+
 
     def euler_from_quaternion(self, x, y, z, w):
         siny_cosp = 2 * (w * z + x * y)
         cosy_cosp = 1 - 2 * (y * y + z * z)
         yaw = np.arctan2(siny_cosp, cosy_cosp)
         return yaw
-
-    def coordBouteilleRelative(self, distance, dy):
-        x = distance * math.cos(self.angle) + dy * math.sin(self.angle)
-        y = distance * math.sin(self.angle) + dy * math.cos(self.angle)
-        return x, y
-
-    def coordBouteilleAbsolute(self, distance, dy):
-        x, y = self.coordBouteilleRelative(distance, dy)
-        return x + self.x, y + self.y
 
     def _initTopics(self, topic_move_name):
         self.scan_subscription = self.create_subscription(
@@ -158,55 +255,22 @@ class MoveBasic(Node):
         self.resolution = grid_msg.info.resolution
         self.data = grid_msg.data
 
-    def coordonee_pixel(self, rang):
-        x = rang % self.width
-        y = rang//self.height
-        x_pixel = x*self.resolution+self.x_origine
-        y_pixel = y*self.resolution+self.y_origine
-        return x_pixel, y_pixel
+    def orienter_vers_angle(self, angle, orientation=0):
+        if angle>self.angle:
+            self.move_right
+            while self.angle <= angle-0.01:
+                self.move_right
+            self.move_stop
 
-    def orienter_vers_angle_deg(self, angle_deg, orientation=0):
-        if orientation == 0:
-            self.move1_publisher.publish(self.move_left)
+        elif angle<self.angle:
+            self.move_left
+            while self.angle>= angle+0.01:
+                self.move_left
+            self.move_stop
         else:
-            self.move1_publisher.publish(self.move_right)
-        angle_rad = angle_deg*2*math.pi/360
-        if angle_deg > 179.98 or angle_deg < -179.98:
-            while (self.angle > 179.98):
-                continue
-        else:
-            while (self.angle >= angle_rad-0.01 and self.angle <= angle_rad+0.01):
-                continue
-        self.move1_publisher.publish(self.move_stop)
+            return
 
-    def verification_bord_arene(self, aire_obstacle):
-        k = 0
-        interieur = 0
-        exterieur = 0
-        for i in self.data:
-            if i[0] == 0:
-                x_verif, y_verif = self.coordonee_pixel(k)
-                if x_verif >= aire_obstacle[0] and x_verif <= aire_obstacle[1] and y_verif >= aire_obstacle[2] and y_verif >= aire_obstacle[3]:
-                    interieur += 1
-                else:
-                    exterieur += 1
-        if interieur > exterieur:
-            return True
-        else:
-            return False
-
-    def t360(self):
-
-        self.move1_publisher.publish(self.move_turn)
-        time.sleep(0.1)
-        self.move1_publisher.publish(self.move_turn)
-        time.sleep(0.1)
-        self.move1_publisher.publish(self.move_turn)
-        time.sleep(0.1)
-        self.move1_publisher.publish(self.move_turn)
-        time.sleep(0.1)
-        self.move1_publisher.publish(self.move_forward)
-
+        
     def goal_pose(self, x, y):
         self.post_goal.pose.position.x = x
         self.post_goal.pose.position.y = y
@@ -385,3 +449,11 @@ class MoveBasic(Node):
                 if point[1] >= -dim_y/2 and point[1] <= 0 and point[0] < dim_x and point[0] >= 0:
                     cloud_obstacle.append(point)
             return cloud_obstacle
+        
+class PointPassage():
+
+    def __init__(self,coordone_x,coordone_y,ID):
+        self.x=coordone_x
+        self.y=coordone_y
+        self.id=ID
+

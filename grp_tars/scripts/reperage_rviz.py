@@ -1,4 +1,4 @@
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PoseStamped
 import rclpy
 from rclpy.node import Node
 import time
@@ -6,21 +6,18 @@ import time
 
 class MoveBasic(Node):
 
-    def __init__(self, node_name, topic_move_name='/abracadabra'):
+    def __init__(self, node_name, topic_move_name='/multi/cmd_nav'):
         super().__init__(node_name)
-        self.i = 0
-
-        self.position = PointStamped()
-        self.position.point.x = 0.0
-        self.position.point.y = -0.0
-        self.position.point.z = -0.00032126060055376326
-        self.position.header.frame_id = 'map'
+        self.position = PoseStamped()
+        self.position.pose.position.x = - 1.65
+        self.position.pose.position.y = 1.45
+        self.position.pose.position.z = -0.0
+        self.position.header.frame_id = '/map'
         self.position.header.stamp = self.get_clock().now().to_msg()
-        self.pub = self.create_publisher(PointStamped, topic_move_name, 10)
+        self.pub = self.create_publisher(PoseStamped, '/goal_pose', 10)
 
     def publishh(self):
-        while True:
-            print(self.position.point.x, self.position.point.y)
+            print(self.position.pose.position.x, self.position.pose.position.y)
             self.pub.publish(self.position)
             time.sleep(1)
 
@@ -30,8 +27,7 @@ def main(args=None):
     isOk = True  # Capture ctrl-c event
     rclpy.init(args=args)
     publishhh = MoveBasic("vbhjv")
-
-    while isOk:
+    while isOk: 
         publishhh.publishh()
 
 

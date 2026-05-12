@@ -1,5 +1,7 @@
 # UV LARM - TARS
 
+Projet en 4ème année d'école d'ingénieurs : un turtle bot doit se déplacer dans un labyrinthe (SLAM via un lidar) et détecter des objets spécifiques (openCV).
+
 **Notes** : Tous les noeud ROS ont été écrits en Python, et les launch files en YAML.
 
 ### Name of the students :
